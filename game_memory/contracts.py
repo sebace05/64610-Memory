@@ -6,6 +6,8 @@ from typing import Literal
 
 @dataclass(frozen=True)
 class CookingWorldConfig:
+    """Controls generated game content; wrapper prices/budgets are separate."""
+
     num_locations: int = 3
     num_ingredients: int = 2
     num_distractor_items: int = 0
@@ -28,6 +30,7 @@ class CookingWorldConfig:
             raise ValueError("game_fold must be train, dev, or test")
 
     def game_params(self) -> str:
+        """Translate Python field names into the upstream engine's parameter string."""
         return ",".join((
             f"numLocations={self.num_locations}",
             f"numIngredients={self.num_ingredients}",
@@ -39,7 +42,11 @@ class CookingWorldConfig:
 
 @dataclass(frozen=True)
 class AgentView:
-    """The only environment fields intended for action prompts."""
+    """The only environment fields intended for action prompts.
+
+    observation is the current feedback, not accumulated history. The actor
+    receives its bounded memory separately. Frozen fields prevent reassignment.
+    """
 
     observation: str
     goal: str
@@ -50,7 +57,12 @@ class AgentView:
 
 @dataclass(frozen=True)
 class Transition:
-    """Runner/scoring record. Pass only view to the actor, not this whole record."""
+    """Runner/scoring record. Pass only view to the actor, not this whole record.
+
+    valid_action means the command was permitted; executed means it actually
+    reached the engine. A valid but unaffordable action is not executed/charged.
+    action_cost is simulated game-budget use, not money or inference tokens.
+    """
 
     view: AgentView
     action: str
@@ -58,15 +70,16 @@ class Transition:
     valid_action: bool
     executed: bool
     recipe_recheck: bool
-    reward: float
+    reward: float  # Change in engine score for this action, independent of cost.
     score: float
-    score_raw: float
+    score_raw: float  # Engine's unnormalized score, alongside normalized score.
     success: bool
     failure: bool
-    terminated: bool
-    truncated: bool
+    terminated: bool  # The game itself ended in success or terminal failure.
+    truncated: bool  # An action-budget or engine-move limit ended the episode.
     termination_reason: str | None
 
     @property
     def done(self) -> bool:
+        """The runner must stop for either a game ending or an external limit."""
         return self.terminated or self.truncated

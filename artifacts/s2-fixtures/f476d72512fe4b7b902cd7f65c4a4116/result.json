@@ -1,0 +1,72 @@
+{
+  "budget_spent": 6,
+  "components": {
+    "actor": {
+      "implementation": "PromptedActor",
+      "is_fake": false,
+      "max_repairs": 1,
+      "prompt_version": "s2-action-v1"
+    },
+    "memory": {
+      "implementation": "FakeMemory",
+      "is_fake": true,
+      "strategy": "hybrid",
+      "version": 1
+    },
+    "model": {
+      "fallback_action": "look around",
+      "implementation": "FakeModel",
+      "is_fake": true,
+      "scripted_actions": [
+        "examine cookbook"
+      ],
+      "tokenizer": "whitespace_fixture_not_model_tokens"
+    }
+  },
+  "config": {
+    "action_budget": 6,
+    "game": {
+      "game_fold": "train",
+      "include_doors": false,
+      "limit_inventory_size": false,
+      "num_distractor_items": 0,
+      "num_ingredients": 2,
+      "num_locations": 3
+    },
+    "memory_token_limit": 256,
+    "recheck_cost": 5,
+    "seed": 0,
+    "strategy": "hybrid"
+  },
+  "episode_id": "f476d72512fe4b7b902cd7f65c4a4116",
+  "error": null,
+  "failure": false,
+  "input_tokens": 671,
+  "kind": "integration_fixture",
+  "model_elapsed_seconds": 0.0,
+  "output_tokens": 26,
+  "recipe_rechecks": 1,
+  "runtime_seconds": 0.24299995799083263,
+  "schema_version": 1,
+  "score": 0.0,
+  "score_raw": 0.0,
+  "status": "completed",
+  "steps": 2,
+  "success": false,
+  "termination_reason": "budget_exhaustion",
+  "usage_by_purpose": {
+    "action": {
+      "calls": 2,
+      "elapsed_seconds": 0.0,
+      "input_tokens": 413,
+      "output_tokens": 6
+    },
+    "memory": {
+      "calls": 2,
+      "elapsed_seconds": 0.0,
+      "input_tokens": 258,
+      "output_tokens": 20
+    }
+  },
+  "usage_complete": true
+}

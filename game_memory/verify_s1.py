@@ -23,6 +23,7 @@ from .environment import CookingWorldEnvironment, RECIPE_ACTIONS
 
 
 def diagnostic_actions(seed: int, config: CookingWorldConfig) -> list[str]:
+    """Build a successful scripted fixture in a separate, privileged engine."""
     backend = TextWorldExpressEnv(envStepLimit=1000)
     try:
         backend.reset(seed=seed, gameName="cookingworld", gameFold=config.game_fold,
@@ -34,8 +35,10 @@ def diagnostic_actions(seed: int, config: CookingWorldConfig) -> list[str]:
 
 
 def replay(seed: int, config: CookingWorldConfig, cost: int, actions: list[str]) -> list[dict]:
+    """Replay fixed actions through our actual wrapper and capture each response."""
     with CookingWorldEnvironment(recheck_cost=cost) as env:
         initial = env.reset(seed, config)
+        # JSONL will have one reset record followed by one record per action.
         records = [{
             "event": "reset",
             "kind": "s1_diagnostic_not_model_evaluation",
@@ -54,6 +57,8 @@ def engine_signature(records: list[dict]) -> list[dict]:
     """Remove treatment prices/budgets while retaining actual game behavior."""
     signatures = []
     for record in records:
+        # Price and remaining budget should differ across treatments; observations,
+        # available interactions, score, and game outcomes should match here.
         view = record["view"]
         signature = {k: view[k] for k in ("observation", "goal", "allowed_actions")}
         if record["event"] == "step":
@@ -66,9 +71,12 @@ def engine_signature(records: list[dict]) -> list[dict]:
 
 
 def verify(output_dir: Path, seeds: list[int], config: CookingWorldConfig) -> dict:
+    """Check reproducibility and price accounting, then save real-engine evidence."""
     output_dir.mkdir(parents=True, exist_ok=True)
     results = []
     for seed in seeds:
+        # Reuse exactly the same path. The repeat checks deterministic resets;
+        # the expensive replay checks that only the accounting changes.
         actions = diagnostic_actions(seed, config)
         cheap = replay(seed, config, 2, actions)
         repeat = replay(seed, config, 2, actions)
@@ -79,6 +87,8 @@ def verify(output_dir: Path, seeds: list[int], config: CookingWorldConfig) -> di
             raise RuntimeError(f"seed {seed}: price changed game behavior")
         if not cheap[-1]["success"] or not expensive[-1]["success"]:
             raise RuntimeError(f"seed {seed}: diagnostic path did not complete within budget")
+        # Each charged reread costs three extra units at price 5 versus price 2.
+        # The free initial recipe reading is absent from this reread count.
         rereads = sum(r.get("recipe_recheck", False) for r in cheap)
         difference = (sum(r.get("action_cost", 0) for r in expensive)
                       - sum(r.get("action_cost", 0) for r in cheap))
@@ -87,6 +97,7 @@ def verify(output_dir: Path, seeds: list[int], config: CookingWorldConfig) -> di
         observed = {r.get("action") for r in cheap if r.get("recipe_recheck")}
         if not RECIPE_ACTIONS <= observed:
             raise RuntimeError(f"seed {seed}: both recipe aliases were not exercised")
+        # These files are outputs of this check, not inputs parsed by argparse.
         files = []
         for label, records in (("cheap", cheap), ("cheap-repeat", repeat), ("expensive", expensive)):
             filename = f"seed-{seed}-{label}.jsonl"
@@ -109,6 +120,8 @@ def verify(output_dir: Path, seeds: list[int], config: CookingWorldConfig) -> di
             "trace_files": files,
         })
 
+    # Record runtime/package identity so teammates can reproduce the fixture.
+    # The checksum identifies the actual simulator binary, not just its label.
     java = subprocess.run(["java", "-version"], capture_output=True, text=True, check=True)
     summary = {
         "kind": "s1_environment_verification_not_llm_results",
@@ -134,6 +147,8 @@ def verify(output_dir: Path, seeds: list[int], config: CookingWorldConfig) -> di
 
 
 def main() -> None:
+    # Parse launch options, e.g. --seeds 0 1 2 --output-dir artifacts/s1.
+    # Seeds select reproducible generated games; their numbers are not difficulty.
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--output-dir", type=Path, default=Path("artifacts/s1"))
     parser.add_argument("--seeds", nargs="+", type=int, default=[0, 1, 2])

@@ -8,7 +8,7 @@ Sebastian, Liam, Colin, and Pablo's project for MIT 6.4610 NLP.
 
 We will compare prose notes, structured JSON, and hybrid memory in CookingWorld using TextWorldExpress. Each agent has the same memory allowance and action budget. Recipe rereads cost either 2 or 5 budget units; other actions cost 1. We will compare completion, recipe rechecks, game score, budget consumption, inference tokens, and runtime.
 
-**Current status:** S1 is implemented and verified locally (October 30, 2026): 16 real-simulator tests pass, and three development seeds replay successfully at both rechecking prices. Model inference, memory strategies, and the experiment runner are not implemented yet. The remaining tasks below are planned.
+**Current status:** S1 is implemented and verified locally (October 30, 2026): 16 real-simulator tests pass, and three development seeds replay successfully at both rechecking prices. The S2 episode runner and fake integration fixtures are implemented and verified (32 total tests pass); its real-model milestone is still open. Production model inference, research memory strategies, and batch resume are not implemented yet.
 
 ## Run the S1 environment verification
 
@@ -29,6 +29,22 @@ python3 -m venv .venv
 
 **Important:** `examine cookbook` reveals the recipe too, so both it and `read cookbook` incur the selected rechecking price. Verification traces use privileged scripted solutions for plumbing checks only; they are not LLM results or an agent policy.
 
+## Run the S2 integration fixture
+
+This uses the real game with a scripted fake model and placeholder memory. It validates integration and logging, not LLM capability or memory quality.
+
+```sh
+.venv/bin/python -m game_memory.run_episode --backend fake --strategy prose --recheck-cost 2 --action-budget 6
+.venv/bin/python -m game_memory.run_episode --backend fake --strategy hybrid --recheck-cost 5 --action-budget 6
+```
+
+Each invocation creates `events.jsonl` and `result.json` in a new directory under `artifacts/s2-fixtures/`. Fake runs are explicitly labeled `integration_fixture`; their whitespace usage counts are not real model tokens.
+
+- [Runner and component handoff](docs/s2-runner.md)
+- [Model, memory, and actor interfaces](game_memory/components.py)
+- [Episode runner](game_memory/runner.py)
+- [Fresh-prompt actor](game_memory/actor.py)
+
 ## Scope and deadlines
 
 - **October 30–November 1:** agree on interfaces and build independently runnable components.
@@ -42,7 +58,7 @@ Plan for approximately **8 human hours per person this week**: three two-hour ta
 
 ## Modular implementation
 
-The environment adapter and its shared contracts are implemented in `game_memory/`; the remaining modules below are proposed. Each module must include an example input/output so other owners can develop against fixtures before integration.
+The environment adapter, actor/runner foundation, and shared interfaces are implemented in `game_memory/`. Real model/memory components and the batch executor remain pending. Each module must include an example input/output so other owners can develop against fixtures before integration.
 
 | Component | Owner | Responsibility |
 | --- | --- | --- |
@@ -60,10 +76,12 @@ Agree on these project interfaces before implementing independently. They wrap t
 ```text
 Environment.reset(seed, game_config) -> AgentView
 Environment.step(action) -> Transition
-Model.generate(messages, purpose) -> Generation
+Model.generate(messages, purpose=...) -> Generation
+Model.count_tokens(text) -> int
+Memory.empty() -> serialized text
 Memory.update(previous_memory, action, observation, context, model) -> MemoryUpdate
 Memory.render(memory) -> text
-run_episode(config, environment, actor, memory) -> EpisodeResult
+run_episode(config, environment, actor, memory, model, output_dir=...) -> result dictionary
 ```
 
 - `AgentView`: current observation, goal, permitted actions, remaining budget, and recipe-reread price.
@@ -76,14 +94,14 @@ The environment does not call the model; the model does not inspect game interna
 
 ## This week's task board
 
-S1 is **Done locally**; the other tickets remain **Planned**. Each has one owner and approximately two hours of human work. Use **Planned → In progress → Review → Done**, with **Blocked** when necessary. A task is done only when its evidence is linked and reviewed.
+S1 is **Done locally**. S2 is **In progress**: runner and fixtures implemented; real L1/P1 integration pending. Other tickets remain **Planned**. Each has one owner and approximately two hours of human work. Use **Planned → In progress → Review → Done**, with **Blocked** when necessary. A task is done only when its evidence is linked and reviewed.
 
 ### Sebastian — environment and integration
 
 | ID | Due | Task | Done when |
 | --- | --- | --- | --- |
 | S1 | Nov 1 | **Done locally (Oct 30).** Install CookingWorld and implement the environment/cost wrapper. Check the Java dependency, reset behavior, recipe-action detection, budget limits, and termination. | A fixed action sequence on the same seed gives matching observations/scores under both prices, with the expected reread-cost difference. Save the command, configuration, and trace. |
-| S2 | Nov 2 | Build the runner against fixtures, then integrate the real environment, model, and memory. Depends on S1, P1, and L1. | One real episode ends for a valid reason and saves a complete result and trace. A mock-only run does not count. |
+| S2 | Nov 2 | **In progress.** Build the runner against fixtures, then integrate the real environment, model, and memory. Depends on S1, P1, and L1. | One real episode ends for a valid reason and saves a complete result and trace. A mock-only run does not count. |
 | S3 | Nov 4 | Add episode identifiers, safe result writing, coverage records, and resume-by-completed-episode behavior. Depends on S2 and the agreed log schema. | Interrupt and resume a development batch without duplicate completed episodes. Every planned run is complete, invalid, or pending. |
 
 ### Pablo — memory strategies and correctness
