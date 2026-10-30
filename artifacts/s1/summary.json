@@ -1,0 +1,81 @@
+{
+  "kind": "s1_environment_verification_not_llm_results",
+  "schema_version": 1,
+  "command": "/Users/abdivu/Desktop/school/6.4610/64610-Memory/.venv/bin/python -m game_memory.verify_s1 --output-dir artifacts/s1",
+  "python_version": "3.12.1",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "java_version": "java version \"1.8.0_391\"\nJava(TM) SE Runtime Environment (build 1.8.0_391-b13)\nJava HotSpot(TM) 64-Bit Server VM (build 25.391-b13, mixed mode)",
+  "textworld_express_version": "1.1.0",
+  "jar_sha256": "23da9ab053dde2de003b4556a2734af3225dc3a0ef8af7354df53aafb5c77d99",
+  "game_config": {
+    "num_locations": 3,
+    "num_ingredients": 2,
+    "num_distractor_items": 0,
+    "include_doors": false,
+    "limit_inventory_size": false,
+    "game_fold": "train"
+  },
+  "initial_recipe_cost": 0,
+  "action_budget": 80,
+  "results": [
+    {
+      "seed": 0,
+      "actions": 15,
+      "recipe_rechecks": 2,
+      "cheap_budget_spent": 17,
+      "expensive_budget_spent": 23,
+      "budget_difference": 6,
+      "cheap_success": true,
+      "expensive_success": true,
+      "reset_replay_identical": true,
+      "game_observations_scores_and_termination_identical": true,
+      "both_recipe_access_commands_charged": true,
+      "trace_files": [
+        "seed-0-cheap.jsonl",
+        "seed-0-cheap-repeat.jsonl",
+        "seed-0-expensive.jsonl"
+      ]
+    },
+    {
+      "seed": 1,
+      "actions": 15,
+      "recipe_rechecks": 2,
+      "cheap_budget_spent": 17,
+      "expensive_budget_spent": 23,
+      "budget_difference": 6,
+      "cheap_success": true,
+      "expensive_success": true,
+      "reset_replay_identical": true,
+      "game_observations_scores_and_termination_identical": true,
+      "both_recipe_access_commands_charged": true,
+      "trace_files": [
+        "seed-1-cheap.jsonl",
+        "seed-1-cheap-repeat.jsonl",
+        "seed-1-expensive.jsonl"
+      ]
+    },
+    {
+      "seed": 2,
+      "actions": 15,
+      "recipe_rechecks": 2,
+      "cheap_budget_spent": 17,
+      "expensive_budget_spent": 23,
+      "budget_difference": 6,
+      "cheap_success": true,
+      "expensive_success": true,
+      "reset_replay_identical": true,
+      "game_observations_scores_and_termination_identical": true,
+      "both_recipe_access_commands_charged": true,
+      "trace_files": [
+        "seed-2-cheap.jsonl",
+        "seed-2-cheap-repeat.jsonl",
+        "seed-2-expensive.jsonl"
+      ]
+    }
+  ],
+  "limitations": [
+    "Scripted solution paths verify plumbing, not LLM capability or memory effectiveness.",
+    "These are development fixtures, not the held-out evaluation seeds.",
+    "Recipe access was checked via read/examine; this is not an exhaustive state-space audit."
+  ]
+}
