@@ -119,3 +119,31 @@ def test_actual_adapter_runs_through_simulator_and_checkpoint_audit(tiny_adapter
     assert result["input_tokens"] > 0 and result["output_tokens"] > 0
     report = summarize(tmp_path)
     assert report["logging_checks_passed"] and report["real_infrastructure_errors"] == 0
+
+
+@pytest.mark.parametrize("strategy", ["prose", "structured", "hybrid"])
+def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_adapter, tmp_path, strategy):
+    # Exercise the seam between PR #1 and the inference adapter with random
+    # local weights. This does not evaluate production Qwen memory quality.
+    from dataclasses import replace
+    import json
+    from game_memory.actor import PromptedActor
+    from game_memory.environment import CookingWorldEnvironment
+    from game_memory.memory import HybridMemory, ProseMemory, StructuredMemory
+    from game_memory.runner import EpisodeConfig, run_episode
+
+    factories = {"prose": ProseMemory, "structured": StructuredMemory, "hybrid": HybridMemory}
+    adapter = TransformersModel(replace(tiny_adapter.config, context_limit=4096))
+    memory = factories[strategy]()
+    with CookingWorldEnvironment(action_budget=1) as env:
+        result = run_episode(EpisodeConfig(strategy=strategy, action_budget=1), env,
+                             PromptedActor(), memory, adapter, output_dir=tmp_path)
+    assert result["status"] == "completed" and result["usage_complete"]
+    assert result["usage_by_purpose"]["memory"]["calls"] == 1
+    events = [json.loads(line) for line in
+              (tmp_path / result["episode_id"] / "events.jsonl").read_text().splitlines()]
+    update = next(event for event in events if event["event"] == "memory_update")
+    assert update["memory_tokens"] == adapter.count_tokens(update["memory"]) <= 256
+    replies = [event for event in events if event["event"] == "model_response"]
+    assert result["input_tokens"] == sum(event["input_tokens"] for event in replies)
+    assert result["output_tokens"] == sum(event["output_tokens"] for event in replies)

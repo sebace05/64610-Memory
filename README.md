@@ -8,7 +8,7 @@ Sebastian, Liam, Colin, and Pablo's project for MIT 6.4610 NLP.
 
 We will compare prose notes, structured JSON, and hybrid memory in CookingWorld using TextWorldExpress. Each agent has the same memory allowance and action budget. Recipe rereads cost either 2 or 5 budget units; other actions cost 1. We will compare completion, recipe rechecks, game score, budget consumption, inference tokens, and runtime.
 
-**Current status:** S1 and the S2 fake integration fixtures are implemented and verified. A pinned Transformers/Qwen adapter, explicit full-history capability diagnostic, checkpoint auditor, and thin Colab launcher are now implemented. Adapter inference is tested offline with tiny randomly initialized Qwen3 weights; this does not establish capability of the actual 4B model. The real-Qwen GPU checkpoint is still open. Research memory strategies and batch resume remain unimplemented.
+**Current status:** S1 and the S2 fake integration fixtures are implemented and verified. P1 prose, structured JSON, and hybrid memory strategies are implemented and fixture-tested, including token limits, repair, and previous-valid-state fallback. A pinned Transformers/Qwen adapter, explicit full-history capability diagnostic, checkpoint auditor, and thin Colab launcher are also implemented. Adapter inference is tested offline with tiny randomly initialized Qwen3 weights; this does not establish capability of the actual 4B model. The real-Qwen GPU checkpoint, production model/tokenizer integration with P1, remaining P2 acceptance checks, and batch resume are still pending.
 
 ## Start the real-Qwen capability checkpoint
 
@@ -55,6 +55,24 @@ Each invocation creates `events.jsonl` and `result.json` in a new directory unde
 - [Episode runner](game_memory/runner.py)
 - [Fresh-prompt actor](game_memory/actor.py)
 
+## P1 memory implementations
+
+`ProseMemory`, `StructuredMemory`, and `HybridMemory` in `game_memory/memory.py`
+implement the existing memory interface with shared writer instructions, one
+repair attempt, and previous-valid-state fallback. Hybrid counts both stores and
+its labels/separators under one allowance. See [policies, example records, and
+handoff](docs/p1-memory.md), [P1 unit tests](tests/test_memory.py), and
+[runner/simulator regressions](tests/test_memory_integration.py).
+
+```sh
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q tests/test_memory.py
+PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q tests/test_memory_integration.py
+```
+
+These checks use scripted outputs and controlled counters through the model
+interface. Actual Qwen token accounting and memory quality still require Liam's
+production tokenizer/model. The existing fake CLI remains an integration fixture.
+
 ## Scope and deadlines
 
 - **October 30–November 1:** agree on interfaces and build independently runnable components.
@@ -68,7 +86,7 @@ Plan for approximately **8 human hours per person this week**: three two-hour ta
 
 ## Modular implementation
 
-The environment adapter, actor/runner foundation, and shared interfaces are implemented in `game_memory/`. Real model/memory components and the batch executor remain pending. Each module must include an example input/output so other owners can develop against fixtures before integration.
+The environment adapter, actor/runner foundation, shared interfaces, P1 memory strategies, and Transformers adapter are implemented in `game_memory/`. Production Qwen validation, real model/tokenizer integration with P1, and the batch executor remain pending. Each module must include an example input/output so other owners can develop against fixtures before integration.
 
 | Component | Owner | Responsibility |
 | --- | --- | --- |
@@ -96,15 +114,15 @@ run_episode(config, environment, actor, memory, model, output_dir=...) -> result
 
 - `AgentView`: current observation, goal, permitted actions, remaining budget, and recipe-reread price.
 - `Transition`: next view plus action cost, score, success/failure, and termination information. Scoring-only fields stay out of model prompts.
-- `Generation`: generated text, input/output token counts, elapsed time, and runtime metadata.
-- `MemoryUpdate`: accepted memory, rendered token count, inference usage, and validation/repair events.
+- `Generation`: generated text, input/output token counts, elapsed time, and optional per-call metadata such as finish reason. Model/runtime identity and settings belong in `Model.metadata`.
+- `MemoryUpdate`: accepted serialized memory and validation/repair events. The runner counts rendered tokens and inference usage.
 - `EpisodeResult`: episode identity, outcome, score, steps, recipe rereads, budget spent, tokens, runtime, and termination reason.
 
 The environment does not call the model; the model does not inspect game internals; memory cannot read the raw history; evaluation reads saved results rather than running games.
 
 ## This week's task board
 
-S1 is **Done locally**. S2 is **In progress**: runner and fixtures implemented; real L1/P1 integration pending. Other tickets remain **Planned**. Each has one owner and approximately two hours of human work. Use **Planned → In progress → Review → Done**, with **Blocked** when necessary. A task is done only when its evidence is linked and reviewed.
+S1 is **Done locally**. S2 is **In progress**: runner and fixtures implemented; real L1/P1 integration pending. P1 is **Review**: implementation and controlled-counter fixtures pass; real tokenizer integration remains pending. Other tickets remain **Planned**. Each has one owner and approximately two hours of human work. Use **Planned → In progress → Review → Done**, with **Blocked** when necessary. A task is done only when its evidence is linked and reviewed.
 
 ### Sebastian — environment and integration
 
@@ -118,7 +136,7 @@ S1 is **Done locally**. S2 is **In progress**: runner and fixtures implemented; 
 
 | ID | Due | Task | Done when |
 | --- | --- | --- | --- |
-| P1 | Nov 1 | Implement prose, JSON, and hybrid memory through the same update/render interface and tokenizer. | All three process the same fixture. Rendered memory respects the combined 256-token allowance, including JSON formatting and hybrid separators. |
+| P1 | Nov 1 | **Review.** Prose, JSON, and hybrid implemented through the shared update/render and token-count interface. [Policies and fixture evidence](docs/p1-memory.md); 100 focused memory tests and 11 runner/simulator regressions pass. Actual Qwen tokenizer integration pending L1. | All three process the same fixture. Rendered memory respects the combined 256-token allowance, including JSON formatting and hybrid separators. |
 | P2 | Nov 2 | Verify history isolation, reset behavior, malformed-output/overflow handling, and a separately labeled full-history diagnostic mode. Depends on P1. | Checks demonstrate no raw-history leakage, no cross-episode memory, valid repair/fallback behavior, and correct hybrid accounting. Full-history mode does not silently truncate. |
 | P3 | Nov 5 | Audit at least four real pilot traces and repair correctness defects. Depends on pilot traces from L2. | Findings identify the episode/step and evidence for a fact being retained, lost, contradicted, or re-observed. Report explicitly if memory demand is absent. |
 
@@ -146,7 +164,7 @@ These are initial decisions to verify during development, not tested findings.
 - **Six conditions:** three memory formats × two reread prices. Begin with a 256-token memory allowance and an 80-unit action budget; calibrate on development games before freezing evaluation.
 - **Initial recipe:** working default is one standardized initial recipe reading outside the action budget, with the same resulting state/information in matched runs. Subsequent reads cost 2 or 5. Record this clarification explicitly in the protocol.
 - **Actor input:** current observation, bounded memory, goal, permitted actions, remaining budget, and reread price. Build a fresh prompt each turn. Logs may retain history; the bounded-memory agent may not access it.
-- **Memory update:** one requested generation after initialization and after each action for every format. Hybrid shares one total allowance. Count exact rendered memory with the model tokenizer; 256 tokens is not the limit for the entire prompt.
+- **Memory update:** one requested generation at initialization and after each nonterminal action for every format. Hybrid shares one total allowance. Count exact rendered memory with the model tokenizer; 256 tokens is not the limit for the entire prompt.
 - **Invalid output:** allow one repair attempt using the same visible evidence. If memory is still malformed or over budget, retain the previous valid memory. If an action remains invalid, record a failed attempt costing 1 unit without silently substituting an action. Count all inference attempts.
 - **Information leakage:** do not provide free recipe/look/inventory helper calls. Audit whether observations or action lists reveal recipe details and document any unavoidable cues.
 - **Data:** use disjoint development and evaluation seed lists. Hold game settings and the built-in environment split constant across the comparison. Match all six conditions on each instance; do not tune on evaluation outcomes.

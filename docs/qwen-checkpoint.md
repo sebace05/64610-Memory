@@ -25,8 +25,8 @@ loss is valid diagnostic data; it does not demonstrate adequate gameplay skill.
   fixtures. Existing bounded-memory fixture tests remain required.
 
 **Not yet verified:** Colab execution, CUDA/BF16/FP16 execution, production
-checkpoint downloads, actual Qwen gameplay capability, real memory strategies,
-and resumable batches. The implementation environment has no GPU. Hugging Face
+checkpoint downloads, actual Qwen gameplay capability, production model/tokenizer
+integration with the P1 memory strategies, and resumable batches. The implementation environment has no GPU. Hugging Face
 access from that cloud environment is also restricted; Colab uses its own network.
 
 ## Colab workflow
@@ -136,8 +136,10 @@ bitwise identical across hardware even with a fixed seed.
 
 ## Next milestone
 
-After real full-history capability is assessed, implement the real prose,
-structured, and hybrid writers with exact rendered token limits, one repair,
-previous-valid-memory fallback, and reset/history-isolation checks. Use the same
-model adapter for acting and writing. The current real-model CLI refuses to
-silently combine Qwen with fake research memory.
+After real full-history capability is assessed, connect the P1 prose, structured,
+and hybrid writers in `game_memory/memory.py` to the real-model CLI and validate
+their exact rendered token limits, one repair, previous-valid-memory fallback,
+and reset/history isolation with the production Qwen tokenizer. Use the same
+model adapter for acting and writing. P1's controlled-output and simulator tests
+already exercise these policies. The current real-model CLI supports only the
+full-history diagnostic and refuses to silently combine Qwen with fake memory.
