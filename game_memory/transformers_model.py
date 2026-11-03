@@ -44,6 +44,24 @@ class TransformersConfig:
             raise ValueError("generation_seed must be an integer in [0, 2**32)")
 
 
+def runtime_metadata(config: TransformersConfig) -> dict:
+    """Validate hardware without loading weights; also identifies the pilot runtime."""
+    import torch
+
+    if config.device == "cuda":
+        if not torch.cuda.is_available():
+            raise RuntimeError("CUDA is unavailable; select a GPU runtime before loading Qwen")
+        if config.dtype == "bfloat16" and not torch.cuda.is_bf16_supported():
+            raise RuntimeError("GPU does not support BF16; explicitly select float16")
+    return {
+        "torch_version": version("torch"), "transformers_version": version("transformers"),
+        "tokenizers_version": version("tokenizers"), "safetensors_version": version("safetensors"),
+        "huggingface_hub_version": version("huggingface-hub"),
+        "python_version": platform.python_version(), "cuda_version": torch.version.cuda,
+        "gpu": torch.cuda.get_device_name() if config.device == "cuda" else None,
+    }
+
+
 class TransformersModel:
     """Load once, generate greedily, and account for actual prompt/output tokens."""
 
@@ -52,11 +70,7 @@ class TransformersModel:
         from transformers import AutoModelForCausalLM, AutoTokenizer
 
         self.config = config
-        if config.device == "cuda":
-            if not torch.cuda.is_available():
-                raise RuntimeError("CUDA is unavailable; select a GPU runtime before loading Qwen")
-            if config.dtype == "bfloat16" and not torch.cuda.is_bf16_supported():
-                raise RuntimeError("GPU does not support BF16; explicitly select float16")
+        runtime = runtime_metadata(config)
         torch.manual_seed(config.generation_seed)
         if config.device == "cuda":
             torch.cuda.manual_seed_all(config.generation_seed)
@@ -88,13 +102,7 @@ class TransformersModel:
             **asdict(config), "tokenizer_revision": config.revision,
             "effective_context_limit": self._context_limit,
             "do_sample": False, "num_beams": 1, "attention_implementation": "sdpa",
-            "torch_version": version("torch"), "transformers_version": version("transformers"),
-            "tokenizers_version": version("tokenizers"),
-            "safetensors_version": version("safetensors"),
-            "huggingface_hub_version": version("huggingface-hub"),
-            "python_version": platform.python_version(),
-            "cuda_version": torch.version.cuda,
-            "gpu": torch.cuda.get_device_name() if config.device == "cuda" else None,
+            **runtime,
             "load_seconds": time.perf_counter() - started,
             "latency_scope": "synchronized_generate_excludes_tokenization_transfer_decode",
             "eos_token_id": self._eos_token_id, "pad_token_id": self._pad_token_id,

@@ -36,7 +36,6 @@ class CookingWorldEnvironment:
         self._seed: int | None = None
         self._done = False
         self._closed = False
-        self._initial_recipe = ""
         self.steps = 0  # Wrapper attempts, including invalid/unaffordable actions.
         self.recipe_rechecks = 0
         self.budget_spent = 0
@@ -119,7 +118,6 @@ class CookingWorldEnvironment:
 
         self._config, self._seed = config, seed
         self._info = dict(info)
-        self._initial_recipe = recipe
         # Exclude the initial read from experimental steps and reread counts.
         self.steps = self.recipe_rechecks = self.budget_spent = 0
         self._done = False

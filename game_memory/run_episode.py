@@ -1,6 +1,7 @@
 """Run fixture episodes or explicit real-model full-history diagnostics."""
 
 import argparse
+import os
 from pathlib import Path
 
 from .actor import PROMPT_VERSIONS, PromptedActor
@@ -10,7 +11,7 @@ from .integration_fixtures import FakeMemory, FakeModel
 from .runner import EpisodeConfig, run_episode
 
 
-def main() -> int:
+def main(argv=None) -> int:
     # Read launch options, not saved JSON artifacts. Example:
     # python -m game_memory.run_episode --strategy hybrid --recheck-cost 5
     parser = argparse.ArgumentParser(description=__doc__)
@@ -35,7 +36,11 @@ def main() -> int:
     parser.add_argument("--memory-max-new-tokens", type=int, default=512)
     parser.add_argument("--generation-seed", type=int, default=0)
     parser.add_argument("--local-files-only", action="store_true")
-    args = parser.parse_args()
+    parser.add_argument("--pilot", action="store_true", help="Enforce an immutable pilot manifest and attempt guards")
+    parser.add_argument("--prepare-only", action="store_true", help="Validate and record the pilot without loading weights")
+    args = parser.parse_args(argv)
+    if args.prepare_only and not args.pilot:
+        parser.error("--prepare-only requires --pilot")
     if args.backend == "transformers":
         if args.strategy != "full_history":
             parser.error("real inference currently requires --strategy full_history; "
@@ -70,6 +75,20 @@ def main() -> int:
                       "artifacts/qwen-diagnostic-fixtures" if args.strategy == "full_history" else
                       "artifacts/s2-fixtures")
     output_dir = args.output_dir or Path(default_output)
+    actor = PromptedActor(full_history=args.strategy == "full_history", prompt_version=args.actor_prompt)
+    if args.pilot:
+        from .pilot import prepare_pilot, runtime_environment
+        os.environ.update(runtime_environment())
+        try:
+            manifest = prepare_pilot(output_dir, configs[0], actor,
+                                     model_config if args.backend == "transformers" else None,
+                                     args.backend, selected_seeds)
+        except (ValueError, KeyError, TypeError) as error:
+            parser.error(str(error))
+        if args.prepare_only:
+            print(f"Pilot prepared: {output_dir / 'pilot-manifest.json'}")
+            print(manifest["runtime"])
+            return 0
     if args.backend == "transformers":
         from .transformers_model import TransformersModel
         model = TransformersModel(model_config)
@@ -81,7 +100,7 @@ def main() -> int:
         with CookingWorldEnvironment(recheck_cost=config.recheck_cost,
                                       action_budget=config.action_budget) as environment:
             result = run_episode(config, environment,
-                                 PromptedActor(full_history=full_history, prompt_version=args.actor_prompt),
+                                 actor,
                                  memory, model if model is not None else FakeModel(),
                                  output_dir=output_dir)
         print(f"{result['kind']}: seed={config.seed}; status={result['status']}; "
