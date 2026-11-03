@@ -145,6 +145,8 @@ def run_episode(
         raise ValueError("environment costs/budget do not match episode configuration")
     if memory.metadata.get("strategy") != config.strategy:
         raise ValueError("memory strategy does not match episode configuration")
+    if actor.metadata.get("requires_unlimited_inventory") and config.game.limit_inventory_size:
+        raise ValueError("mechanics prompt requires unlimited inventory")
     full_history = config.strategy == "full_history"
     if full_history != (actor.metadata.get("context_mode") == "full_history"):
         raise ValueError("actor context mode does not match episode configuration")

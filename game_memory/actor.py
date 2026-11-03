@@ -7,7 +7,17 @@ from .components import Message, Model
 from .contracts import AgentView
 
 
-PROMPT_VERSIONS = ("v1", "v2")
+PROMPT_VERSIONS = ("v1", "v2", "v2-mechanics")
+
+MECHANICS_PRIMER = (
+    "Game mechanics: To prepare a meal, all required ingredients must be in your "
+    "inventory at the same time, with the recipe's required preparation completed. "
+    "Ingredients on a surface or in another container are not carried. Putting an "
+    "ingredient down removes it from your inventory. This experiment has unlimited "
+    "inventory: you do not need to put down one item to carry another. Return to "
+    "the kitchen with the ingredients. Choose 'prepare meal' when available, then "
+    "'eat meal' when available."
+)
 
 
 def validate_action_output(text: str, allowed_actions: Iterable[str] | None) -> tuple[str | None, str | None]:
@@ -69,10 +79,13 @@ class PromptedActor:
     @property
     def metadata(self) -> dict:
         prefix = "full-history" if self.full_history else "s2-action"
-        return {"implementation": "PromptedActor",
+        metadata = {"implementation": "PromptedActor",
                 "prompt_version": f"{prefix}-{self.prompt_version}",
                 "context_mode": "full_history" if self.full_history else "bounded_memory",
                 "max_repairs": 1, "is_fake": False}
+        if self.prompt_version == "v2-mechanics":
+            metadata["requires_unlimited_inventory"] = True
+        return metadata
 
     def choose_action(self, view: AgentView, memory: str, model: Model) -> str:
         # This list is local to this call. No persistent chat or past observations.
@@ -82,8 +95,10 @@ class PromptedActor:
         instructions = ("Choose one permitted game action using only the current "
                     f"observation and {context_name}. Recipe rereads consume the stated budget. "
                     'Return only a JSON object of the form {"action": "exact permitted action"}.')
-        if self.prompt_version == "v2":
+        if self.prompt_version != "v1":
             instructions = _progress_instructions(context_name)
+        if self.prompt_version == "v2-mechanics":
+            instructions = MECHANICS_PRIMER + "\n\n" + instructions
         messages = (
             Message("system", instructions),
             # Serialize the public view, then append memory literally. Encoding
@@ -111,7 +126,7 @@ class PromptedActor:
                 # call starts over, so this exchange cannot carry hidden memory.
                 feedback = ("The output was malformed or not a permitted action. "
                             "Return only the required JSON with one permitted action.")
-                if self.prompt_version == "v2":
+                if self.prompt_version != "v1":
                     if reason == "malformed_json":
                         feedback = "Your response is not valid JSON. Remove commentary and code fences. "
                     elif reason == "invalid_action_schema":

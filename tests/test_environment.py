@@ -11,6 +11,26 @@ from game_memory import CookingWorldConfig, CookingWorldEnvironment
 SMALL = CookingWorldConfig(num_locations=1, num_ingredients=2)
 
 
+def test_mechanics_primer_preparation_rules_match_the_real_simulator():
+    # Public-action mechanics fixture, not a model policy or model success.
+    with CookingWorldEnvironment() as env:
+        env.reset(0, CookingWorldConfig(limit_inventory_size=False))
+        for action in ["open fridge", "take water", "take knife", "move east", "take flour"]:
+            assert action in env.view.allowed_actions
+            env.step(action)
+        inventory = env.step("inventory").view.observation
+        assert all(item in inventory for item in ("water", "flour", "knife"))
+        assert "prepare meal" not in env.view.allowed_actions
+        env.step("move west")
+        assert "prepare meal" in env.view.allowed_actions
+        env.step("put water in counter")
+        assert "prepare meal" not in env.view.allowed_actions
+        env.step("take water")
+        assert "prepare meal" in env.view.allowed_actions
+        assert not env.step("prepare meal").success
+        assert env.step("eat meal").success
+
+
 @pytest.fixture
 def env():
     with CookingWorldEnvironment() as environment:

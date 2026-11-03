@@ -1,7 +1,7 @@
 # Friday MVP: the next checkpoint
 
 Use one entry point: [qwen_colab.ipynb](../notebooks/qwen_colab.ipynb).
-It runs **one full-history diagnostic on development seed 1**, then stops.
+It runs **one mechanics-clarified full-history test on development seed 0**, then stops.
 Do not start the memory pilot from an older notebook copy.
 
 ## What is actually verified
@@ -24,9 +24,12 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
    in an older copy. Use the supplied ready-to-run copy, or set `REPO_REF` to the
    implementation commit provided with this milestone.
 2. Select a **T4 GPU**. Keep the `SETTINGS` dictionary unchanged: Qwen revision
-   `cdbee75f17c01a7cc42f958dc650907174af0554`, FP16, actor v2, budget 80,
+   `cdbee75f17c01a7cc42f958dc650907174af0554`, FP16, actor `v2-mechanics`, budget 80,
    reread price 2, greedy decoding, context limit 8,192, and generation seed 0.
-   `FIRST_SEED = 1` selects another development instance; seed 0 is already audited.
+   `FIRST_SEED = 0` matches the audited v2 baseline. The only intentional agent
+   change is a short game-mechanics primer; v2 instructions and repair policy
+   otherwise remain unchanged. The primer includes no ingredient locations or
+   seed-specific solution. The runner rejects it for limited-inventory games.
 3. Run sections 1–3. The checkout is preserved, Drive is mounted, dependencies are
    installed in the isolated environment, and CPU/Java/adapter tests run before weights load.
 4. Run section 4. It checks GPU support and records the manifest without loading
@@ -34,13 +37,14 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
    older manifest formats require a new pilot directory; existing files are not overwritten.
 5. Run section 5 **once**. This is the only model episode in the notebook.
 6. Run the audit and download cells. Return the checkpoint ZIP for analysis.
-   Stop here; no additional episodes run automatically. Disconnect the GPU when finished.
+   Stop here; no additional episodes run automatically. If a model/audit cell
+   fails, the last download cell still packages the logs. Disconnect the GPU when finished.
 
 The earlier v2 run used about **203 seconds of episode time plus 101 seconds of
 model loading**. Setup, downloading, and idle allocation add to billed GPU time;
-seed 1 may differ. This is a reference from one run, not a cost guarantee. The
-reason for one further run is to check whether the seed-0 planning failure repeats
-without starting an open-ended prompt search.
+the new run may differ. This is a reference from one run, not a cost guarantee. The
+reason for this one run is to test the specific inventory/preparation misunderstanding
+seen in v2. This is one bounded correction, not an open-ended prompt search.
 
 ## Saved evidence
 

@@ -2,7 +2,7 @@
 
 import pytest
 
-from game_memory.actor import PromptedActor, validate_action_output
+from game_memory.actor import MECHANICS_PRIMER, PromptedActor, validate_action_output
 from game_memory.components import Generation
 from game_memory.contracts import AgentView
 
@@ -116,3 +116,18 @@ def test_v2_stops_after_one_failed_repair_without_substituting_a_command():
 def test_unknown_prompt_version_is_rejected():
     with pytest.raises(ValueError, match="prompt_version"):
         PromptedActor(prompt_version="unknown")
+
+
+@pytest.mark.parametrize("full_history", [False, True])
+def test_mechanics_candidate_only_prepends_rules_and_retains_v2_repair(full_history):
+    original, candidate = Responses('not json', '{"action":"inventory"}'), Responses('not json', '{"action":"inventory"}')
+    PromptedActor(full_history=full_history, prompt_version="v2").choose_action(view(), "notes", original)
+    actor = PromptedActor(full_history=full_history, prompt_version="v2-mechanics")
+    actor.choose_action(view(), "notes", candidate)
+    for (before, purpose), (after, candidate_purpose) in zip(original.calls, candidate.calls):
+        assert purpose == candidate_purpose
+        assert after[0].content == MECHANICS_PRIMER + "\n\n" + before[0].content
+        assert after[1:] == before[1:]
+    assert actor.metadata["requires_unlimited_inventory"] is True
+    for seed_specific in ("flour", "water", "pantry", "east", "west"):
+        assert seed_specific not in MECHANICS_PRIMER.lower()

@@ -55,9 +55,18 @@ version (`s2-action-v2` or `full-history-v2`), and exact requests remain in the 
 
 ## Rerunning the development comparison
 
-The Colab launcher explicitly defaults to `SETTINGS["actor_prompt"] = "v2"`, the original
-model revision, FP16, greedy decoding, budget 80, and price 2. Keep these non-policy
-settings fixed when comparing v1/v2. The shared CLI records the policy choice in an immutable manifest and rejects
+The Colab launcher now selects `SETTINGS["actor_prompt"] = "v2-mechanics"` on seed 0
+for one targeted correction to the supplied v2 run. It prepends the verified rules
+that ingredients must be carried together, putting them down removes them from
+inventory, and preparation/eating occur through the available game commands.
+The runner rejects this prompt if inventory capacity is limited. V2's remaining
+instructions and repair feedback are identical. No locations of ingredients or
+seed-specific action sequence is provided, and no action is forced or filtered.
+Actual Qwen improvement from this primer is still unverified.
+
+The original model revision, FP16, greedy decoding, budget 80, and price 2 remain
+fixed. Keep these non-policy
+settings fixed when comparing prompt versions. The shared CLI records the policy choice in an immutable manifest and rejects
 changed settings, duplicate seeds, and partial attempts before loading weights.
 
 Use separate pilot directories for versions, keep the original run, and compare
@@ -68,8 +77,8 @@ Use the remaining development seeds to assess whether the observed changes gener
 Example after installing the optional inference dependencies:
 
 ```sh
-.venv/bin/python -m game_memory.pilot --output-dir /path/to/persistent/actor-v2-pilot \
-  --backend transformers --strategy full_history --actor-prompt v2 \
+.venv/bin/python -m game_memory.pilot --output-dir /path/to/persistent/mechanics-checkpoint \
+  --backend transformers --strategy full_history --actor-prompt v2-mechanics \
   --model-revision cdbee75f17c01a7cc42f958dc650907174af0554 \
   --dtype float16 --seed 0 --recheck-cost 2 --action-budget 80
 ```
