@@ -66,3 +66,14 @@ def test_cli_rejects_invalid_experiments_before_loading_weights(monkeypatch, cap
         main()
     assert error.value.code == 2
     assert expected in capsys.readouterr().err
+
+
+def test_cli_passes_explicit_prompt_version_and_labels_the_result(tmp_path, monkeypatch):
+    from game_memory.run_episode import main
+    monkeypatch.setattr("sys.argv", ["run_episode", "--backend", "fake", "--strategy", "full_history",
+                                    "--actor-prompt", "v2", "--action-budget", "2",
+                                    "--output-dir", str(tmp_path)])
+    assert main() == 0
+    result = json.loads(next(tmp_path.glob("*/result.json")).read_text())
+    assert result["components"]["actor"]["prompt_version"] == "full-history-v2"
+    assert result["kind"] == "integration_fixture"

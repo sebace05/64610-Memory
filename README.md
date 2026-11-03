@@ -8,7 +8,7 @@ Sebastian, Liam, Colin, and Pablo's project for MIT 6.4610 NLP.
 
 We will compare prose notes, structured JSON, and hybrid memory in CookingWorld using TextWorldExpress. Each agent has the same memory allowance and action budget. Recipe rereads cost either 2 or 5 budget units; other actions cost 1. We will compare completion, recipe rechecks, game score, budget consumption, inference tokens, and runtime.
 
-**Current status:** S1 and the S2 fake integration fixtures are implemented and verified. P1 prose, structured JSON, and hybrid memory strategies are implemented and fixture-tested, including token limits, repair, and previous-valid-state fallback. A pinned Transformers/Qwen adapter, explicit full-history capability diagnostic, checkpoint auditor, and thin Colab launcher are also implemented. Adapter inference is tested offline with tiny randomly initialized Qwen3 weights; this does not establish capability of the actual 4B model. The real-Qwen GPU checkpoint, production model/tokenizer integration with P1, remaining P2 acceptance checks, and batch resume are still pending.
+**Current status:** S1 and the S2 fake integration fixtures are implemented and verified. P1 prose, structured JSON, and hybrid memory strategies are implemented and fixture-tested, including token limits, repair, and previous-valid-state fallback. A pinned Transformers/Qwen adapter, full-history diagnostic, checkpoint auditor, and Colab launcher are implemented. A supplied real-Qwen T4/FP16 trace completed seed 0 with valid accounting but failed the game through budget exhaustion. A versioned v2 actor now adds general gameplay guidance and reason-specific repairs; its effect on real Qwen gameplay is not yet measured. Production model/tokenizer integration with P1, remaining P2 acceptance checks, and batch resume are still pending.
 
 ## Start the real-Qwen capability checkpoint
 
@@ -19,6 +19,7 @@ The first milestone is one real-model full-history episode, followed by a small 
 - [Implementation and research checkpoint plan](docs/implementation-checkpoints.md)
 - [Transformers backend](game_memory/transformers_model.py)
 - [Diagnostic log auditor](game_memory/summarize_diagnostics.py)
+- [Actor v1/v2 comparison and offline trace inspection](docs/actor-policy.md)
 
 ## Run the S1 environment verification
 

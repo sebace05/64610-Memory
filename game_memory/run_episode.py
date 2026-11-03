@@ -3,7 +3,7 @@
 import argparse
 from pathlib import Path
 
-from .actor import PromptedActor
+from .actor import PROMPT_VERSIONS, PromptedActor
 from .environment import CookingWorldEnvironment
 from .diagnostics import FullHistoryMemory
 from .integration_fixtures import FakeMemory, FakeModel
@@ -18,6 +18,8 @@ def main() -> int:
     parser.add_argument("--strategy", choices=["prose", "structured", "hybrid", "full_history"],
                         default="prose")
     parser.add_argument("--recheck-cost", type=int, choices=[2, 5], default=2)
+    parser.add_argument("--actor-prompt", choices=PROMPT_VERSIONS, default="v1",
+                        help="v1 reproduces the baseline; v2 adds progress and specific repair instructions")
     seeds = parser.add_mutually_exclusive_group()
     seeds.add_argument("--seed", type=int, default=0)
     seeds.add_argument("--seeds", type=int, nargs="+")
@@ -37,7 +39,7 @@ def main() -> int:
     if args.backend == "transformers":
         if args.strategy != "full_history":
             parser.error("real inference currently requires --strategy full_history; "
-                         "research memory strategies are not implemented yet")
+                         "P1 bounded-memory integration with this CLI remains pending")
         if not args.model_revision:
             parser.error("--model-revision is required for real inference")
     elif args.model_revision:
@@ -78,7 +80,8 @@ def main() -> int:
         memory = FullHistoryMemory() if full_history else FakeMemory(config.strategy)
         with CookingWorldEnvironment(recheck_cost=config.recheck_cost,
                                       action_budget=config.action_budget) as environment:
-            result = run_episode(config, environment, PromptedActor(full_history=full_history),
+            result = run_episode(config, environment,
+                                 PromptedActor(full_history=full_history, prompt_version=args.actor_prompt),
                                  memory, model if model is not None else FakeModel(),
                                  output_dir=output_dir)
         print(f"{result['kind']}: seed={config.seed}; status={result['status']}; "

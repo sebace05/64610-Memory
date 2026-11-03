@@ -1,21 +1,76 @@
 """Fresh per-turn action prompts with at most one output-repair attempt."""
 
 import json
+from collections.abc import Iterable
 
 from .components import Message, Model
 from .contracts import AgentView
 
 
+PROMPT_VERSIONS = ("v1", "v2")
+
+
+def validate_action_output(text: str, allowed_actions: Iterable[str] | None) -> tuple[str | None, str | None]:
+    """Return proposed/canonical action and a reason, without selecting a fallback.
+
+    ``allowed_actions=None`` supports offline syntax analysis when a trace has
+    no preceding public view; it must not be used by the actor.
+    """
+    try:
+        parsed = json.loads(text)
+    except (ValueError, TypeError):
+        return None, "malformed_json"
+    action = parsed.get("action") if isinstance(parsed, dict) else None
+    if not isinstance(action, str):
+        return None, "invalid_action_schema"
+    if allowed_actions is None:
+        return action, "availability_unknown"
+    allowed = {" ".join(a.lower().split()): a for a in allowed_actions}
+    normalized = " ".join(action.lower().split())
+    if normalized not in allowed:
+        return action, "unavailable_action"
+    return allowed[normalized], None
+
+
+def _progress_instructions(context_name: str) -> str:
+    # General mechanics only: no seed-specific ingredient, location, or path.
+    return (
+        "Complete the cooking goal: gather the required ingredients, follow the recipe's "
+        "preparation directions, prepare the meal, and eat it. Choose one action using "
+        f"only the current observation and supplied {context_name}. "
+        "Use that evidence to track your current location, currently carried items, "
+        "and remaining prerequisites. An item you put down is no longer carried. "
+        "Keep required ingredients available for preparation; avoid putting them down "
+        "unless the task requires it. "
+        "Copy an exact command from the current allowed_actions list. A recipe naming "
+        "an ingredient does not mean it can currently be taken. If a required item "
+        "is unavailable here, use permitted movement or container actions to search "
+        "for it or satisfy prerequisites. Do not assume an unobserved item's location. "
+        "The initial recipe was provided once at reset. Read or examine the cookbook "
+        "when needed details are missing or uncertain in the supplied context and "
+        "recovering them justifies the stated cost. Repeating a known observation "
+        "does not gather missing ingredients; prefer a goal-advancing action when "
+        "another identical observation would add no useful information. "
+        "Choose an affordable action: recipe rereads cost recheck_cost and other "
+        "actions cost 1. Use budget_remaining to assess affordability. "
+        'Return only a JSON object of the form {"action": "exact permitted action"}.'
+    )
+
+
 class PromptedActor:
     """Build action requests; the supplied model determines the actual behavior."""
 
-    def __init__(self, *, full_history: bool = False) -> None:
+    def __init__(self, *, full_history: bool = False, prompt_version: str = "v1") -> None:
+        if prompt_version not in PROMPT_VERSIONS:
+            raise ValueError(f"prompt_version must be one of {PROMPT_VERSIONS}")
         self.full_history = full_history
+        self.prompt_version = prompt_version
 
     @property
     def metadata(self) -> dict:
+        prefix = "full-history" if self.full_history else "s2-action"
         return {"implementation": "PromptedActor",
-                "prompt_version": "full-history-v1" if self.full_history else "s2-action-v1",
+                "prompt_version": f"{prefix}-{self.prompt_version}",
                 "context_mode": "full_history" if self.full_history else "bounded_memory",
                 "max_repairs": 1, "is_fake": False}
 
@@ -24,10 +79,13 @@ class PromptedActor:
         context_name = "visible interaction history" if self.full_history else "memory"
         context_header = ("\nVisible interaction history (diagnostic):\n" if self.full_history
                           else "\nBounded memory:\n")
-        messages = (
-            Message("system", "Choose one permitted game action using only the current "
+        instructions = ("Choose one permitted game action using only the current "
                     f"observation and {context_name}. Recipe rereads consume the stated budget. "
-                    'Return only a JSON object of the form {"action": "exact permitted action"}.'),
+                    'Return only a JSON object of the form {"action": "exact permitted action"}.')
+        if self.prompt_version == "v2":
+            instructions = _progress_instructions(context_name)
+        messages = (
+            Message("system", instructions),
             # Serialize the public view, then append memory literally. Encoding
             # memory as a JSON string again would add escaping beyond its bound.
             Message("user", "Current game input:\n" + json.dumps({
@@ -39,30 +97,39 @@ class PromptedActor:
             }, sort_keys=True) + context_header + memory),
         )
         # Normalize for matching, but return the engine's canonical command text.
-        allowed = {" ".join(a.lower().split()): a for a in view.allowed_actions}
         # Two generations maximum: one original response and one repair.
         # Repairs use inference resources, but are not additional game actions.
         for attempt in range(2):
             generation = model.generate(
                 messages, purpose="action" if attempt == 0 else "action_repair"
             )
-            try:
-                # Parsing JSON alone is insufficient: the action must also be
-                # a string matching one of this turn's permitted commands.
-                parsed = json.loads(generation.text)
-                action = parsed["action"] if isinstance(parsed, dict) else None
-            except (json.JSONDecodeError, KeyError):
-                action = None
-            if isinstance(action, str):
-                normalized = " ".join(action.lower().split())
-                if normalized in allowed:
-                    return allowed[normalized]
+            action, reason = validate_action_output(generation.text, view.allowed_actions)
+            if reason is None:
+                return action
             if attempt == 0:
                 # Add feedback only within this turn. The next choose_action()
                 # call starts over, so this exchange cannot carry hidden memory.
-                messages = (*messages, Message("assistant", generation.text),
-                            Message("user", "The output was malformed or not a permitted action. "
-                                    "Return only the required JSON with one permitted action."))
+                feedback = ("The output was malformed or not a permitted action. "
+                            "Return only the required JSON with one permitted action.")
+                if self.prompt_version == "v2":
+                    if reason == "malformed_json":
+                        feedback = "Your response is not valid JSON. Remove commentary and code fences. "
+                    elif reason == "invalid_action_schema":
+                        feedback = "Your JSON must be an object whose action field is a string. "
+                    else:
+                        feedback = (
+                            f"The requested action {json.dumps(action)} is not in the current allowed_actions. "
+                            "Availability depends on the current location, open containers, and carried items. "
+                            "If an ingredient cannot be taken here, choose a permitted exploratory or "
+                            "prerequisite action rather than repeating the unavailable command. "
+                        )
+                    feedback += (
+                        "Use only the same supplied observation and context. Select an exact current "
+                        "allowed action that advances the cooking goal and fits budget_remaining; "
+                        "recipe rereads cost recheck_cost and other actions cost 1. "
+                        'Return only {"action": "exact permitted action"}.'
+                    )
+                messages = (*messages, Message("assistant", generation.text), Message("user", feedback))
         # Ensure malformed text cannot accidentally be interpreted as a legal
         # command after repair failed. The wrapper charges this invalid attempt.
         return "[INVALID_ACTION_OUTPUT] " + generation.text

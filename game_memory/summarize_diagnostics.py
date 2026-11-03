@@ -6,6 +6,7 @@ import json
 import math
 from pathlib import Path
 
+from .inspect_episode import analyze_events
 
 def summarize(root: Path, *, include_fixtures: bool = False) -> dict:
     directories = sorted({p.parent for pattern in ("events.jsonl", "result.json")
@@ -101,6 +102,8 @@ def summarize(root: Path, *, include_fixtures: bool = False) -> dict:
                 "input_tokens": result["input_tokens"], "output_tokens": result["output_tokens"],
                 "model_elapsed_seconds": result["model_elapsed_seconds"],
                 "runtime_seconds": result["runtime_seconds"],
+                "actor_prompt": result["components"]["actor"].get("prompt_version"),
+                "behavior": analyze_events(events)["behavior"],
             })
         except (OSError, ValueError, KeyError, TypeError, IndexError) as error:
             issues.append({"directory": label, "error": str(error)})

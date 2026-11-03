@@ -26,7 +26,7 @@ def example():
         {"event": "model_request", "step": 1, "purpose": "action"},
         {"event": "model_response", "step": 1, "purpose": "action", "input_tokens": 10,
          "output_tokens": 3, "elapsed_seconds": 0.25, "metadata": {"finish_reason": "length"}},
-        {"event": "action", "transition": {"action_cost": 1, "recipe_recheck": False,
+        {"event": "action", "step": 1, "transition": {"action_cost": 1, "recipe_recheck": False,
          "valid_action": True, "termination_reason": "budget_exhaustion", "success": False}},
         {"event": "episode_end", "result": result},
     ]

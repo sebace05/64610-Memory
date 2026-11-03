@@ -99,7 +99,8 @@ def test_missing_cuda_fails_before_attempting_model_download(monkeypatch):
         TransformersModel(TransformersConfig(revision="0" * 40))
 
 
-def test_actual_adapter_runs_through_simulator_and_checkpoint_audit(tiny_adapter, tmp_path):
+@pytest.mark.parametrize("prompt_version", ["v1", "v2"])
+def test_actual_adapter_runs_through_simulator_and_checkpoint_audit(tiny_adapter, tmp_path, prompt_version):
     # This is end-to-end inference with random local weights, not a production
     # Qwen capability test. A valid game loss must still have auditable usage.
     from dataclasses import replace
@@ -112,7 +113,8 @@ def test_actual_adapter_runs_through_simulator_and_checkpoint_audit(tiny_adapter
     adapter = TransformersModel(replace(tiny_adapter.config, context_limit=4096))
     with CookingWorldEnvironment(action_budget=1) as env:
         result = run_episode(EpisodeConfig(strategy="full_history", action_budget=1), env,
-                             PromptedActor(full_history=True), FullHistoryMemory(), adapter,
+                             PromptedActor(full_history=True, prompt_version=prompt_version),
+                             FullHistoryMemory(), adapter,
                              output_dir=tmp_path)
     assert result["status"] == "completed" and result["usage_complete"]
     assert result["steps"] == result["budget_spent"] == 1
@@ -122,7 +124,8 @@ def test_actual_adapter_runs_through_simulator_and_checkpoint_audit(tiny_adapter
 
 
 @pytest.mark.parametrize("strategy", ["prose", "structured", "hybrid"])
-def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_adapter, tmp_path, strategy):
+@pytest.mark.parametrize("prompt_version", ["v1", "v2"])
+def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_adapter, tmp_path, strategy, prompt_version):
     # Exercise the seam between PR #1 and the inference adapter with random
     # local weights. This does not evaluate production Qwen memory quality.
     from dataclasses import replace
@@ -137,7 +140,7 @@ def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_ada
     memory = factories[strategy]()
     with CookingWorldEnvironment(action_budget=1) as env:
         result = run_episode(EpisodeConfig(strategy=strategy, action_budget=1), env,
-                             PromptedActor(), memory, adapter, output_dir=tmp_path)
+                             PromptedActor(prompt_version=prompt_version), memory, adapter, output_dir=tmp_path)
     assert result["status"] == "completed" and result["usage_complete"]
     assert result["usage_by_purpose"]["memory"]["calls"] == 1
     events = [json.loads(line) for line in

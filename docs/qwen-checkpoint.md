@@ -24,22 +24,27 @@ loss is valid diagnostic data; it does not demonstrate adequate gameplay skill.
 - Real-simulator diagnostic tests and an auditor with hand-calculated log
   fixtures. Existing bounded-memory fixture tests remain required.
 
-**Not yet verified:** Colab execution, CUDA/BF16/FP16 execution, production
-checkpoint downloads, actual Qwen gameplay capability, production model/tokenizer
-integration with the P1 memory strategies, and resumable batches. The implementation environment has no GPU. Hugging Face
-access from that cloud environment is also restricted; Colab uses its own network.
+A supplied Colab trace verifies production Qwen v1 inference on a Tesla T4 in
+FP16. Seed 0 ended by budget exhaustion with score 0.25; this verifies execution,
+not adequate gameplay capability. The revised v2 actor and latest notebook have
+not yet been evaluated with the production checkpoint. BF16 execution, real
+model/tokenizer integration with P1, and resumable batches remain unverified.
+The implementation environment has no GPU. Hugging Face access there is also
+restricted; Colab uses its own network.
 
 ## Colab workflow
 
 1. Commit and push this implementation so Colab can retrieve it. Open
    [qwen_colab.ipynb](../notebooks/qwen_colab.ipynb) and enter the full code SHA.
-2. Select a GPU runtime. Start with a 24 GB L4-class GPU if available. FP16 on a
-   16 GB T4 may work, but test memory use. The notebook defaults to BF16; explicitly
-   set FP16 for a T4. Do not mix precisions within a frozen experiment.
+2. Select a GPU runtime. The notebook defaults to FP16, matching the supplied
+   T4 development run. An L4-class GPU offers more headroom. Preserve precision
+   for the actor v1/v2 comparison; do not mix precisions within a frozen experiment.
 3. Mount persistent output storage, install the isolated environment, and pass
    the tests before loading weights. The isolation avoids Colab package conflicts.
-4. Resolve the model revision once. The same immutable commit loads both model
-   and tokenizer. Record it and reuse it when freezing the protocol.
+4. The notebook pins the same model/tokenizer revision as the original T4 run.
+   Select `ACTOR_PROMPT = "v2"` for the revised policy or `"v1"` for the original.
+   Each version needs its own pilot directory and manifest. See [actor policy
+   comparisons](actor-policy.md). The CLI default remains v1 for compatibility.
 5. Run seed 0 at budget 80 and reread price 2. Inspect the report and exact trace.
 6. If the technical checks pass, run development seeds 1–4 with the same settings.
    The notebook loads the model once for these four games. It refuses to rerun
@@ -113,8 +118,9 @@ output directory for each configuration or repeat attempt:
 ```sh
 .venv/bin/python -m game_memory.run_episode \
   --backend transformers --strategy full_history \
+  --actor-prompt v2 \
   --model-revision FULL_40_CHARACTER_MODEL_COMMIT_SHA \
-  --dtype bfloat16 --context-limit 8192 --action-max-new-tokens 128 \
+  --dtype float16 --context-limit 8192 --action-max-new-tokens 128 \
   --generation-seed 0 --seed 0 --recheck-cost 2 --action-budget 80 \
   --output-dir /path/to/persistent/pilot-001
 
@@ -172,6 +178,11 @@ Before evaluation, freeze the code commit, model/tokenizer revision, dependency
 freeze, GPU/precision, greedy decoding, generation limits, prompts, game
 settings, seed lists, and error/retry rules. GPU numerical behavior need not be
 bitwise identical across hardware even with a fixed seed.
+
+The report now distinguishes malformed JSON, invalid action schemas, and
+unavailable action requests, alongside repetition and score-plateau diagnostics.
+The notebook can also create a CSV turn table and inspect exact prompts for a
+selected step using `game_memory.inspect_episode`, without running inference.
 
 ## Next milestone
 
