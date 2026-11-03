@@ -3,5 +3,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .DS_Store
-artifacts/qwen-diagnostics/
-artifacts/qwen-diagnostic-fixtures/
+# New run outputs stay local or in Drive; existing committed fixtures remain tracked.
+artifacts/
