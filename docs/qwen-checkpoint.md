@@ -1,7 +1,8 @@
 # Friday MVP: the next checkpoint
 
 Use one entry point: [qwen_colab.ipynb](../notebooks/qwen_colab.ipynb).
-It runs **one mechanics-clarified full-history test on development seed 0**, then stops.
+It runs **one separately labeled one-room/one-ingredient full-history test on seed 0**.
+Qwen stays loaded for explicitly chosen follow-up runs in the same live runtime.
 Do not start the memory pilot from an older notebook copy.
 
 ## What is actually verified
@@ -10,9 +11,9 @@ Do not start the memory pilot from an older notebook copy.
 | --- | --- | --- |
 | Simulator and runner | Automated real-Java tests; fixed replay/accounting checks. | Nothing here establishes model capability. |
 | Qwen inference | Two supplied T4/FP16 seed-0 traces, with clean source/model revisions and complete accounting. | Useful completion across development games. Both supplied runs lose by budget exhaustion. |
-| Actor v2 | Fewer unavailable requests and rereads, and higher score on seed 0. | It still discards ingredients and loops on a shelf. See [the trace comparison](actor-policy.md). |
+| Actor v2 | Fewer unavailable requests and rereads, and higher score on seed 0. | It still discards ingredients and loops on a shelf. The subsequent mechanics-candidate failure is reported but its latest trace has not been supplied for audit. |
 | Memory | Existing prose/JSON writers have repair, fallback, rendering-limit, and isolation tests, including tiny local model integration. | Production Qwen/tokenizer integration and real bounded-memory episodes. |
-| Execution | Shared manifest guards, Java handling, durable launch logs; recorded v1/v2 prompts replay identically. | The refactored notebook still requires a Colab run. |
+| Execution | Shared manifest guards, Java handling, durable logs; a tiny local model runs two fresh games in the same loaded process. | Production-Qwen session reuse and the current notebook still require a Colab run. |
 
 Local tests use scripted inference or tiny random weights where indicated.
 They do not evaluate the actual 4B checkpoint. This workspace has no GPU.
@@ -20,31 +21,65 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
 
 ## Exact next action in Colab
 
-1. Open the current notebook as a fresh copy, rather than only changing a code SHA
-   in an older copy. Use the supplied ready-to-run copy, or set `REPO_REF` to the
-   implementation commit provided with this milestone.
-2. Select a **T4 GPU**. Keep the `SETTINGS` dictionary unchanged: Qwen revision
+1. Upload the supplied ready-to-run notebook as a fresh Colab copy. Its REPO_REF
+   pins the implementation; do not substitute a SHA into an older notebook.
+2. Select a **T4 GPU**. Keep Qwen revision
    `cdbee75f17c01a7cc42f958dc650907174af0554`, FP16, actor `v2-mechanics`, budget 80,
    reread price 2, greedy decoding, context limit 8,192, and generation seed 0.
-   `FIRST_SEED = 0` matches the audited v2 baseline. The only intentional agent
-   change is a short game-mechanics primer; v2 instructions and repair policy
-   otherwise remain unchanged. The primer includes no ingredient locations or
-   seed-specific solution. The runner rejects it for limited-inventory games.
-3. Run sections 1–3. The checkout is preserved, Drive is mounted, dependencies are
-   installed in the isolated environment, and CPU/Java/adapter tests run before weights load.
-4. Run section 4. It checks GPU support and records the manifest without loading
-   Qwen weights. Repeating identical preparation is safe. Changed settings or
-   older manifest formats require a new pilot directory; existing files are not overwritten.
-5. Run section 5 **once**. This is the only model episode in the notebook.
-6. Run the audit and download cells. Return the checkpoint ZIP for analysis.
-   Stop here; no additional episodes run automatically. If a model/audit cell
-   fails, the last download cell still packages the logs. Disconnect the GPU when finished.
+   The new condition sets `num_locations=1`, `num_ingredients=1`, and `FIRST_SEED=0`.
+   The engine still generates the recipe; no scripted solution reaches the model.
+3. Run sections 1–3 once. Preserve the pinned checkout, mount Drive, install
+   isolated dependencies, and save CPU/Java/adapter checks plus a dependency freeze.
+4. Run section 4. It validates hardware and records the attempt's immutable
+   manifest without loading weights. Old data is never adopted or overwritten.
+5. Run section 5 once. It loads Qwen in the isolated Python process and prints
+   `ready: true` plus the measured model-loading time. Only the connection lives
+   in the Colab notebook kernel; its preinstalled libraries stay separate.
+6. Run section 6 once. It creates a fresh environment and history, using the
+   already-loaded model/tokenizer. Then run section 7 and the ZIP-download cells.
+   Return both this ZIP and the failed mechanics-checkpoint ZIP for trace inspection.
+   If a run/audit fails, the final download cell can still package available logs.
+7. When finished, run `session.close()` in a new cell and disconnect the GPU.
 
-The earlier v2 run used about **203 seconds of episode time plus 101 seconds of
-model loading**. Setup, downloading, and idle allocation add to billed GPU time;
-the new run may differ. This is a reference from one run, not a cost guarantee. The
-reason for this one run is to test the specific inventory/preparation misunderstanding
-seen in v2. This is one bounded correction, not an open-ended prompt search.
+The earlier v2 run used about **203 seconds playing plus 101 seconds loading**.
+Reuse targets that loading cost, not inference time; setup/download/idle time is
+additional. Production-Qwen timings for the session path remain unmeasured.
+One real smaller-game run is justified to establish basic gameplay after reported
+failure of the mechanics correction. No further jobs are scheduled automatically.
+
+## Fast development loop within one live runtime
+
+After inspecting one result and choosing the next run, edit SETTINGS/FIRST_SEED,
+rerun section 2 for a new PILOT_DIR, section 4, then sections 6–7 and download.
+Skip installation/tests and model loading while code/dependencies/model settings
+are unchanged. Every attempt remains a separate condition with fresh game state,
+history, and inference accounting. Only model weights/tokenizer persist.
+
+Changing model/revision/precision/generation settings requires a new loaded
+session. Changing repository code also requires restarting the session from a
+new committed checkout and rerunning checks; the worker rejects stale code.
+It does not hot-reload code into existing weights. An interrupted notebook read
+closes the worker to avoid pairing a later request with an earlier response.
+
+A Colab disconnect/reclaimed runtime loses the loaded process. Hugging Face's
+local cache avoids repeated downloads while it exists; Drive preserves research
+logs. Neither restores GPU memory or resumes an interrupted game. Do not pickle
+the model or reuse a previous agent's history as a shortcut.
+
+## What the smaller game can establish
+
+The engine supports one room and one ingredient without custom rewards or hidden
+solutions. A public-action mechanics fixture completes seed 0, including cooking,
+preparation, and eating. This is a manual simulator check, not a Qwen result.
+Reducing locations also changes generated ingredients/preparation, so this is a
+new task configuration rather than a one-variable prompt comparison.
+
+If Qwen succeeds, inspect the trace and check another preselected development
+seed before increasing difficulty one step at a time. A one-ingredient game may
+put too little pressure on memory for a useful prose/JSON comparison. Freeze a
+single viable configuration for both strategies and both prices; preserve all
+failed configurations and do not select seeds because they succeed. If even this
+capability check fails, inspect that trace before changing prompts or policy.
 
 ## Saved evidence
 
@@ -53,11 +88,16 @@ Each new `PILOT_DIR` in Drive contains:
 - `pilot-manifest.json`: code revision, actor settings, game settings, model
   revision, precision, and runtime/package identity. It is immutable.
 - `checks-<id>/`: dependency check, Java version, pytest output, and full dependency freeze.
-- `launch-<id>.log`: exact command, stdout/stderr, and exit status, including
-  failures before an episode exists. Every attempt gets a new log.
+- `launch-<id>.log`: preparation command/output/status. `model-session.log` is a
+  snapshot of the loaded worker log, including model settings, source, loading
+  time, run arguments, output, and exit status. It can include earlier requests
+  from the same session; episode traces/results in this folder identify this attempt.
 - `<episode-id>/events.jsonl` and `result.json`: exact model inputs/outputs,
   observations, costs, outcome, token usage, generation time, model-loading time,
   and episode runtime. Gameplay losses remain distinct from infrastructure errors.
+  `components.model.load_seconds` describes the original shared session load:
+  count it once for the session, not once per reused episode. Episode runtime
+  excludes this loading cost, just as in the earlier cold-launch path.
 - `checkpoint-report.json`: independent log/accounting checks and behavioral metrics.
 
 The final ZIP contains these files, not cached model weights. Old pilots stay in

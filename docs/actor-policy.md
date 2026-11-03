@@ -55,7 +55,7 @@ version (`s2-action-v2` or `full-history-v2`), and exact requests remain in the 
 
 ## Rerunning the development comparison
 
-The Colab launcher now selects `SETTINGS["actor_prompt"] = "v2-mechanics"` on seed 0
+The `v2-mechanics` candidate was introduced on seed 0
 for one targeted correction to the supplied v2 run. It prepends the verified rules
 that ingredients must be carried together, putting them down removes them from
 inventory, and preparation/eating occur through the available game commands.
@@ -63,6 +63,12 @@ The runner rejects this prompt if inventory capacity is limited. V2's remaining
 instructions and repair feedback are identical. No locations of ingredients or
 seed-specific action sequence is provided, and no action is forced or filtered.
 Actual Qwen improvement from this primer is still unverified.
+
+After a reported further failure (latest trace not yet supplied), the current
+notebook keeps that prompt and selects one room/one ingredient for a separate
+capability check. This changes generated recipes as well as navigation, so it
+must not be presented as a controlled prompt comparison with the earlier games.
+No Qwen success on the smaller setting has been verified.
 
 The original model revision, FP16, greedy decoding, budget 80, and price 2 remain
 fixed. Keep these non-policy

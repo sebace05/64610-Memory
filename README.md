@@ -3,7 +3,7 @@
 Current target: a small research MVP by Friday. Use **[notebooks/qwen_colab.ipynb](notebooks/qwen_colab.ipynb)** as the single Colab entry point and **[the checkpoint guide](docs/qwen-checkpoint.md)** for the next action.
 
 - Verified: simulator checks and two real-Qwen seed-0 diagnostics. Both execute correctly; both fail the game. V2 makes more progress but loops on shelf examinations.
-- Next: one mechanics-clarified full-history test on development seed 0, keeping the model and other settings fixed against the existing v2 baseline. Inspect its behavior before memory comparisons.
+- Next: one separately labeled one-room/one-ingredient full-history capability check on seed 0. Reuse loaded Qwen between development cells; inspect behavior before memory comparisons. The latest mechanics-candidate failure is reported but its trace has not yet been audited.
 - Target after that gate: prose vs structured JSON, two prices, two development seeds (eight episodes), one results table, and two annotated trace windows.
 - Deferred: hybrid, the 120-episode evaluation, dashboards, general batch/resume, and optimization unless needed to unblock this MVP. Existing implementations and results are preserved.
 
