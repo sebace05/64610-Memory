@@ -30,7 +30,7 @@ Hybrid, large evaluations, dashboards, and batch/resume are deferred.
 | Memory strategies and diagnostic history | `memory.py`, `diagnostics.py` |
 | Commands, manifests, and launch logs | `run_episode.py`, `pilot.py` |
 | Read saved evidence | `inspect_episode.py`, `summarize_diagnostics.py` |
-| Simulator verification and test fixtures | `verify_s1.py`, `integration_fixtures.py` |
+| Scripted integration fixtures | `integration_fixtures.py` (simulator checks live in `tests/`) |
 
 ## Local checks
 

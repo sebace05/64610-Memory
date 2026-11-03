@@ -5,7 +5,6 @@ and enforces its manifest guards on every request. No jobs run in the background
 """
 
 from contextlib import redirect_stdout
-from dataclasses import asdict
 import json
 from pathlib import Path
 import subprocess
@@ -86,14 +85,6 @@ def serve():
             source = source_metadata()
             code = code_snapshot()
             model = TransformersModel(config)
-            arguments = ["--backend", "transformers", "--pilot"]
-            for key, value in asdict(config).items():
-                flag = "--" + ("model-revision" if key == "revision" else key.replace("_", "-"))
-                if isinstance(value, bool):
-                    if value:
-                        arguments.append(flag)
-                else:
-                    arguments.extend([flag, str(value)])
             ready = {"ready": True, "source": source,
                      "model_load_seconds": model.metadata["load_seconds"]}
             print(json.dumps(ready), flush=True)
@@ -108,7 +99,7 @@ def serve():
                     raise ValueError("Repository changed; restart the model session before running new code")
                 request = json.loads(line)
                 print(json.dumps({"arguments": request}), flush=True)
-                status = main(arguments + request, model=model)
+                status = main(request, model=model)
             except SystemExit as error:
                 status = error.code
             except Exception:

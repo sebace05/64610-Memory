@@ -1,6 +1,7 @@
 """Run fixture episodes or explicit real-model full-history diagnostics."""
 
 import argparse
+from dataclasses import asdict
 import os
 from pathlib import Path
 
@@ -41,6 +42,10 @@ def main(argv=None, *, model=None) -> int:
     parser.add_argument("--local-files-only", action="store_true")
     parser.add_argument("--pilot", action="store_true", help="Enforce an immutable pilot manifest and attempt guards")
     parser.add_argument("--prepare-only", action="store_true", help="Validate and record the pilot without loading weights")
+    if model is not None:
+        defaults = asdict(model.config)
+        defaults["model_revision"] = defaults.pop("revision")
+        parser.set_defaults(backend="transformers", pilot=True, **defaults)
     args = parser.parse_args(argv)
     if args.prepare_only and not args.pilot:
         parser.error("--prepare-only requires --pilot")

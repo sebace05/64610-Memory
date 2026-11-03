@@ -2,9 +2,10 @@
 
 ## Setup
 
-Requirements: Python 3.10+ and a working Java runtime. Tested locally with Python
-3.12 and Java 8; Colab compatibility is not yet verified. The Python dependency
-versions are pinned in `requirements.txt`. No GPU or model access is needed for S1.
+Requirements: Python 3.10+ and a working Java runtime. Dependencies are pinned in
+`requirements.txt`. No GPU or model access is needed for simulator checks.
+Current Colab instructions and Java startup handling live in
+[the checkpoint guide](qwen-checkpoint.md).
 
 From the repository root:
 
@@ -12,15 +13,17 @@ From the repository root:
 java -version
 python3 -m venv .venv
 .venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m pytest -q
-.venv/bin/python -m game_memory.verify_s1 --output-dir artifacts/s1
+.venv/bin/python -m game_memory.pilot --output-dir artifacts/local-checks --check
 ```
 
 The simulator starts a local Java process and communicates over local sockets.
 Use the wrapper as a context manager so that the process is closed afterward.
-The verification command writes real development-game traces and a summary
-including game parameters, Python/Java/package versions, and the simulator JAR
-checksum. It does not call an LLM or establish model capability.
+The checks save their logs and dependency versions without loading model weights.
+They do not establish model capability. The old S1 fixture generator has been
+retired from the application; its
+[complete source](https://github.com/sebace05/64610-Memory/blob/a7a2cd27b3967dbd1f989ea89df151881b6be0b6/game_memory/verify_s1.py)
+and [original setup instructions](https://github.com/sebace05/64610-Memory/blob/a7a2cd27b3967dbd1f989ea89df151881b6be0b6/docs/s1-environment.md)
+remain at their original revision. Existing traces and summaries are preserved.
 
 ## Public interface
 
@@ -73,11 +76,11 @@ Seeds 0, 1, and 2 are development fixtures and must not become held-out instance
 
 ## Verification and handoff
 
-The verification script obtains a separate privileged diagnostic solution, adds
+The historical verification script obtained a separate privileged diagnostic solution, added
 an `examine cookbook` step, and replays the exact action sequence twice at price 2
-and once at price 5. It verifies successful completion, repeatability, matching
+and once at price 5. It verified successful completion, repeatability, matching
 observations/actions/scores/termination, and a budget difference of exactly
-`3 × charged recipe rereads`. Only this diagnostic script uses solution paths;
+`3 × charged recipe rereads`. The historical script used solution paths;
 the wrapper explicitly resets with `generateGoldPath=False`.
 
 Tests additionally cover invalid actions, both recipe access commands, book
