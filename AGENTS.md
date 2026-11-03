@@ -1,5 +1,7 @@
 # Development guidelines
 
+Current Friday MVP: one real-Qwen checkpoint, then prose vs structured JSON at two prices and two development seeds (eight episodes), one table, and two trace annotations. Defer hybrid, the 120-episode evaluation, dashboards, general batch/resume, and optimization unless they block this MVP. Inspect actual gameplay before launching memory comparisons.
+
 Apply the minimal-change approach described by [Ponytail](https://github.com/dietrichgebert/ponytail): read the real workflow, reuse existing code, and add only what the task needs.
 
 - Tie each new module, dependency, option, or abstraction to an active research checkpoint or demonstrated failure. Avoid speculative features.

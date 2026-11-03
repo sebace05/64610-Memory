@@ -1,195 +1,86 @@
-# First Qwen capability checkpoint
+# Friday MVP: the next checkpoint
 
-The first real-model milestone is one auditable CookingWorld episode using
-`Qwen/Qwen3-4B-Instruct-2507` with all previous visible observations/actions.
-Then run several development seeds without changing settings. A completed game
-loss is valid diagnostic data; it does not demonstrate adequate gameplay skill.
+Use one entry point: [qwen_colab.ipynb](../notebooks/qwen_colab.ipynb).
+It runs **one full-history diagnostic on development seed 1**, then stops.
+Do not start the memory pilot from an older notebook copy.
 
-## What is implemented and verified
+## What is actually verified
 
-- A single-device Transformers adapter, pinned optional inference dependencies,
-  and CLI that loads the model once for a sequence of diagnostic seeds.
-- Exact tokenizer counting, new-output-only decoding, greedy generation,
-  immutable model/tokenizer revisions, synchronized GPU timing, generation
-  limits, and peak allocated CUDA memory per request.
-- An explicit full-history archive with no compression, writer inference, or
-  memory-limit enforcement. The actor sees the current public view and a JSON
-  archive of initial/nonterminal observations and actions; the latest observation
-  also appears in the current view. Prior action lists, repairs, hidden simulator
-  state, and scoring fields are not added to the archive. Terminal evidence is
-  logged but requires no later decision.
-- Offline adapter tests execute actual generation with tiny random Qwen3
-  weights, plus controlled EOS/output slicing and context-overflow checks.
-  They never download or evaluate the production checkpoint.
-- Real-simulator diagnostic tests and an auditor with hand-calculated log
-  fixtures. Existing bounded-memory fixture tests remain required.
+| Area | Evidence | Still unverified |
+| --- | --- | --- |
+| Simulator and runner | Automated real-Java tests; fixed replay/accounting checks. | Nothing here establishes model capability. |
+| Qwen inference | Two supplied T4/FP16 seed-0 traces, with clean source/model revisions and complete accounting. | Useful completion across development games. Both supplied runs lose by budget exhaustion. |
+| Actor v2 | Fewer unavailable requests and rereads, and higher score on seed 0. | It still discards ingredients and loops on a shelf. See [the trace comparison](actor-policy.md). |
+| Memory | Existing prose/JSON writers have repair, fallback, rendering-limit, and isolation tests, including tiny local model integration. | Production Qwen/tokenizer integration and real bounded-memory episodes. |
+| Execution | Shared manifest guards, Java handling, durable launch logs; recorded v1/v2 prompts replay identically. | The refactored notebook still requires a Colab run. |
 
-A supplied Colab trace verifies production Qwen v1 inference on a Tesla T4 in
-FP16. Seed 0 ended by budget exhaustion with score 0.25; this verifies execution,
-not adequate gameplay capability. The revised v2 actor and latest notebook have
-not yet been evaluated with the production checkpoint. BF16 execution, real
-model/tokenizer integration with P1, and resumable batches remain unverified.
-The implementation environment has no GPU. Hugging Face access there is also
-restricted; Colab uses its own network.
+Local tests use scripted inference or tiny random weights where indicated.
+They do not evaluate the actual 4B checkpoint. This workspace has no GPU.
+The uploaded traces are evidence of runs performed in Colab, not runs performed here.
 
-## Colab workflow
+## Exact next action in Colab
 
-1. Commit and push this implementation so Colab can retrieve it. Open
-   [qwen_colab.ipynb](../notebooks/qwen_colab.ipynb) and enter the full code SHA.
-2. Select a GPU runtime. The notebook defaults to FP16, matching the supplied
-   T4 development run. An L4-class GPU offers more headroom. Preserve precision
-   for the actor v1/v2 comparison; do not mix precisions within a frozen experiment.
-3. Mount persistent output storage, install the isolated environment, and pass
-   the tests before loading weights. The isolation avoids Colab package conflicts.
-4. The notebook pins the same model/tokenizer revision as the original T4 run.
-   Select `ACTOR_PROMPT = "v2"` for the revised policy or `"v1"` for the original.
-   Each version needs its own pilot directory and manifest. See [actor policy
-   comparisons](actor-policy.md). The CLI default remains v1 for compatibility.
-5. Run seed 0 at budget 80 and reread price 2. Inspect the report and exact trace.
-6. If the technical checks pass, run development seeds 1–4 with the same settings.
-   The notebook loads the model once for these four games. It refuses to rerun
-   existing seeds or silently retry partial episodes in the same pilot directory.
-7. Save the manifest, dependency freeze, results, traces, and checkpoint report.
-   Stop/disconnect the GPU when finished.
+1. Open the current notebook as a fresh copy, rather than only changing a code SHA
+   in an older copy. Use the supplied ready-to-run copy, or set `REPO_REF` to the
+   implementation commit provided with this milestone.
+2. Select a **T4 GPU**. Keep the `SETTINGS` dictionary unchanged: Qwen revision
+   `cdbee75f17c01a7cc42f958dc650907174af0554`, FP16, actor v2, budget 80,
+   reread price 2, greedy decoding, context limit 8,192, and generation seed 0.
+   `FIRST_SEED = 1` selects another development instance; seed 0 is already audited.
+3. Run sections 1–3. The checkout is preserved, Drive is mounted, dependencies are
+   installed in the isolated environment, and CPU/Java/adapter tests run before weights load.
+4. Run section 4. It checks GPU support and records the manifest without loading
+   Qwen weights. Repeating identical preparation is safe. Changed settings or
+   older manifest formats require a new pilot directory; existing files are not overwritten.
+5. Run section 5 **once**. This is the only model episode in the notebook.
+6. Run the audit and download cells. Return the checkpoint ZIP for analysis.
+   Stop here; no additional episodes run automatically. Disconnect the GPU when finished.
 
-The notebook has no embedded tokens. Public weights ordinarily need no Hugging
-Face credential. For a private GitHub checkout, use your normal secure Colab
-authentication rather than storing credentials in notebook cells.
+The earlier v2 run used about **203 seconds of episode time plus 101 seconds of
+model loading**. Setup, downloading, and idle allocation add to billed GPU time;
+seed 1 may differ. This is a reference from one run, not a cost guarantee. The
+reason for one further run is to check whether the seed-0 planning failure repeats
+without starting an open-ended prompt search.
 
-## Equivalent commands on a GPU machine
+## Saved evidence
 
-From the repository root, create an isolated Python 3.10+ environment and use
-its Python consistently. For example:
+Each new `PILOT_DIR` in Drive contains:
 
-```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements-model.txt
-.venv/bin/python -m pip check
-PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q
-java -version
-```
+- `pilot-manifest.json`: code revision, actor settings, game settings, model
+  revision, precision, and runtime/package identity. It is immutable.
+- `checks-<id>/`: dependency check, Java version, pytest output, and full dependency freeze.
+- `launch-<id>.log`: exact command, stdout/stderr, and exit status, including
+  failures before an episode exists. Every attempt gets a new log.
+- `<episode-id>/events.jsonl` and `result.json`: exact model inputs/outputs,
+  observations, costs, outcome, token usage, generation time, model-loading time,
+  and episode runtime. Gameplay losses remain distinct from infrastructure errors.
+- `checkpoint-report.json`: independent log/accounting checks and behavioral metrics.
 
-The CUDA-enabled PyTorch distribution also requires a compatible NVIDIA driver.
-The adapter fails if CUDA or the explicitly selected precision is unsupported;
-it does not change devices, precision, or quantization automatically.
+The final ZIP contains these files, not cached model weights. Old pilots stay in
+their original folders. The Java/Py4J cgroup-warning fix is in the shared Python
+launcher; no installed package or verification setting is patched.
 
-### Colab Java cgroup warnings and Py4J startup
+## The remaining MVP, behind the checkpoint
 
-Some Colab Java 21 runtimes print `[warning][os,container]` cgroup messages to
-stdout before the Py4J gateway's numeric port. Py4J tries to parse the first line
-as an integer and raises `ValueError: invalid literal for int()`. The subsequent
-`TextWorldExpressEnv` destructor error about a missing `_gateway` is secondary:
-construction failed before that field could be assigned.
+1. **Inspect gameplay.** A valid ending is not a useful-gameplay pass. Check
+   exploration, carried ingredients, progress toward preparing/eating, and loops.
+   If planning remains blocked, retain a reproducible diagnostic and choose the
+   smallest evidence-backed next step. Do not fill a memory-results table with fixtures.
+2. **Integrate two memories.** Connect existing `ProseMemory` and
+   `StructuredMemory` to real inference. Verify the same 256-token rendered-memory
+   limit, one repair/previous-valid-state fallback, writer/actor usage accounting,
+   and isolation. No raw history, scores, scripted paths, or hidden simulator state
+   belongs in bounded-agent inputs.
+3. **Measure one bounded episode.** Its writer calls add cost; the full-history
+   run cannot forecast that cost alone. Review its measured runtime and usage
+   before launching the other seven episodes.
+4. **Eight episodes only.** Two strategies × prices 2/5 × development seeds 0/1.
+   Hold other settings fixed. Preserve every attempt in separate condition folders;
+   keep infrastructure errors, incomplete attempts, and gameplay losses distinct.
+5. **Evidence.** One compact table of completion, rereads, budget, tokens, and
+   runtime; two trace windows grounded in visible evidence. Describe the result
+   as preliminary. Two instances do not support strong statistical or causal claims.
 
-The notebook appends the following Java 9+ unified-logging options to the
-subprocess environment, preserving existing `JAVA_TOOL_OPTIONS`:
-
-```text
--Xlog:os+container=off:stdout -Xlog:os+container=warning:stderr
-```
-
-These options route container warnings/errors to stderr and leave stdout free
-for the gateway protocol. They do not disable container detection, change the
-Python/Java versions, or modify installed packages. For an already-open notebook,
-run this cell before retrying the tests and keep this same `ENV` for inference:
-
-```python
-ENV["JAVA_TOOL_OPTIONS"] = (
-    ENV.get("JAVA_TOOL_OPTIONS", "")
-    + " -Xlog:os+container=off:stdout"
-    + " -Xlog:os+container=warning:stderr"
-).strip()
-result = subprocess.run(
-    [PYTHON, "-m", "pytest", "-q"], cwd=REPO_DIR, env=ENV,
-    text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-)
-print(result.stdout)
-result.check_returncode()
-```
-
-Rerunning the original installation cell in an older notebook recreates `ENV`;
-add the fix immediately after its `ENV = ...` assignment if rerunning that cell.
-Native tests reproduce noisy JVM stdout with container trace logging and verify
-that the notebook options restore a real simulator reset.
-
-Replace the revision placeholder with the full checkpoint commit SHA. Use a new
-output directory for each configuration or repeat attempt:
-
-```sh
-.venv/bin/python -m game_memory.run_episode \
-  --backend transformers --strategy full_history \
-  --actor-prompt v2 \
-  --model-revision FULL_40_CHARACTER_MODEL_COMMIT_SHA \
-  --dtype float16 --context-limit 8192 --action-max-new-tokens 128 \
-  --generation-seed 0 --seed 0 --recheck-cost 2 --action-budget 80 \
-  --output-dir /path/to/persistent/pilot-001
-
-.venv/bin/python -m game_memory.summarize_diagnostics /path/to/persistent/pilot-001
-```
-
-For the next four development games, use `--seeds 1 2 3 4` with the same options.
-The CLI stops on the first infrastructure error; inspect it before retrying.
-This supports sequential diagnostics, not durable batch scheduling/resume.
-The notebook adds duplicate/partial-run guards, but the CLI intentionally keeps
-the existing behavior of preserving every attempt in a fresh episode directory.
-
-Fake plumbing check, requiring only the base dependencies and Java:
-
-```sh
-.venv/bin/python -m game_memory.run_episode --backend fake \
-  --strategy full_history --seeds 0 1 --action-budget 6 \
-  --output-dir /tmp/qwen-fixture-check
-.venv/bin/python -m game_memory.summarize_diagnostics \
-  /tmp/qwen-fixture-check --include-fixtures
-```
-
-Fixtures never count toward real-model completion/success totals. Without
-`--include-fixtures`, the auditor rejects them. Do not pass that flag for a real
-pilot. Use a fresh directory when repeating this example.
-
-## How to interpret the checkpoint
-
-The report independently checks event sequences, result/header consistency,
-request/response/error pairing, total and per-purpose inference tokens, model
-latency totals, action budgets, rereads, and terminal records. Missing results
-are pending; duplicate seeds and mixed configurations are flagged rather than
-pooled. Infrastructure errors remain separate from valid unsuccessful games.
-The report exits nonzero for broken/pending logs or real infrastructure errors;
-gameplay losses alone do not fail the technical checkpoint.
-
-Inspect output-limit hits and repair calls first. Then annotate loops,
-navigation/cooking errors, decisions that ignore available recipe information,
-and budget exhaustion. Cross-check assertions against the actual prompt the
-model received. Five development games provide feasibility evidence, not a
-precise success-rate estimate or a comparison of memory formats.
-
-The adapter reserves room for its entire output allowance. If prompt plus
-allowance exceeds the smaller of `context_limit` and the model's native limit,
-it records an inference error without truncating history. Changing the context
-cap, output allowance, prompt, precision, or game settings creates a new pilot
-configuration. Retain previous artifacts and rerun consistently.
-
-Inference timing excludes tokenization, input transfer, and decoding; end-to-end
-episode runtime is recorded separately. Model-loading time is metadata, separate
-from generation time. Drive writes may affect episode wall time. Neither number
-alone equals billed GPU time; measure startup, setup, and idle allocation too.
-
-Before evaluation, freeze the code commit, model/tokenizer revision, dependency
-freeze, GPU/precision, greedy decoding, generation limits, prompts, game
-settings, seed lists, and error/retry rules. GPU numerical behavior need not be
-bitwise identical across hardware even with a fixed seed.
-
-The report now distinguishes malformed JSON, invalid action schemas, and
-unavailable action requests, alongside repetition and score-plateau diagnostics.
-The notebook can also create a CSV turn table and inspect exact prompts for a
-selected step using `game_memory.inspect_episode`, without running inference.
-
-## Next milestone
-
-After real full-history capability is assessed, connect the P1 prose, structured,
-and hybrid writers in `game_memory/memory.py` to the real-model CLI and validate
-their exact rendered token limits, one repair, previous-valid-memory fallback,
-and reset/history isolation with the production Qwen tokenizer. Use the same
-model adapter for acting and writing. P1's controlled-output and simulator tests
-already exercise these policies. The current real-model CLI supports only the
-full-history diagnostic and refuses to silently combine Qwen with fake memory.
+Hybrid, the 120-episode study, dashboards, general scheduling/resume, and performance
+optimization are deferred unless an issue specifically blocks this MVP.
+Existing work is retained for later; it is not part of this notebook's run path.

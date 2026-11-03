@@ -1,5 +1,18 @@
 # 64610-Memory
 
+Current target: a small research MVP by Friday. Use **[notebooks/qwen_colab.ipynb](notebooks/qwen_colab.ipynb)** as the single Colab entry point and **[the checkpoint guide](docs/qwen-checkpoint.md)** for the next action.
+
+- Verified: simulator checks and two real-Qwen seed-0 diagnostics. Both execute correctly; both fail the game. V2 makes more progress but loops on shelf examinations.
+- Next: one unchanged-v2 full-history diagnostic on development seed 1, then inspect its behavior before memory comparisons.
+- Target after that gate: prose vs structured JSON, two prices, two development seeds (eight episodes), one results table, and two annotated trace windows.
+- Deferred: hybrid, the 120-episode evaluation, dashboards, general batch/resume, and optimization unless needed to unblock this MVP. Existing implementations and results are preserved.
+
+The current environment has no GPU. Automated tests and recorded-trace replays are separate from the Colab checks you run.
+
+<details>
+<summary>Original project plan and component handoffs (deferred scope)</summary>
+
+
 Sebastian, Liam, Colin, and Pablo's project for MIT 6.4610 NLP.
 
 ## Project overview
@@ -8,7 +21,7 @@ Sebastian, Liam, Colin, and Pablo's project for MIT 6.4610 NLP.
 
 We will compare prose notes, structured JSON, and hybrid memory in CookingWorld using TextWorldExpress. Each agent has the same memory allowance and action budget. Recipe rereads cost either 2 or 5 budget units; other actions cost 1. We will compare completion, recipe rechecks, game score, budget consumption, inference tokens, and runtime.
 
-**Current status:** S1 and the S2 fake integration fixtures are implemented and verified. P1 prose, structured JSON, and hybrid memory strategies are implemented and fixture-tested, including token limits, repair, and previous-valid-state fallback. A pinned Transformers/Qwen adapter, full-history diagnostic, checkpoint auditor, and Colab launcher are implemented. A supplied real-Qwen T4/FP16 trace completed seed 0 with valid accounting but failed the game through budget exhaustion. A versioned v2 actor now adds general gameplay guidance and reason-specific repairs; its effect on real Qwen gameplay is not yet measured. Production model/tokenizer integration with P1, remaining P2 acceptance checks, and batch resume are still pending.
+**Current status:** S1 and the S2 fake integration fixtures are implemented and verified. P1 prose, structured JSON, and hybrid memory strategies are implemented and fixture-tested, including token limits, repair, and previous-valid-state fallback. A pinned Transformers/Qwen adapter, full-history diagnostic, checkpoint auditor, and Colab launcher are implemented. A supplied real-Qwen T4/FP16 trace completed seed 0 with valid accounting but failed the game through budget exhaustion. The supplied v2 run reaches score 0.5 with fewer repairs/rereads but still fails by repeating shelf examinations. See the matched development comparison in docs/actor-policy.md. Pilot guards and launch logs now live in shared Python code. Production model/tokenizer integration with P1, remaining P2 acceptance checks, and batch resume are still pending.
 
 ## Start the real-Qwen capability checkpoint
 
@@ -204,3 +217,5 @@ Post a short asynchronous update on work days: artifact/link, next task, and blo
 - [Qwen3-4B-Instruct-2507 model card](https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507): model identity, chat template, and Transformers usage.
 
 Model capability, compatibility, runtime, and cost for this project remain pilot deliverables.
+
+</details>

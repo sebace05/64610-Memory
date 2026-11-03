@@ -55,32 +55,59 @@ version (`s2-action-v2` or `full-history-v2`), and exact requests remain in the 
 
 ## Rerunning the development comparison
 
-The Colab launcher explicitly defaults to `ACTOR_PROMPT = "v2"`, the original
+The Colab launcher explicitly defaults to `SETTINGS["actor_prompt"] = "v2"`, the original
 model revision, FP16, greedy decoding, budget 80, and price 2. Keep these non-policy
-settings fixed when comparing v1/v2. The launcher records the policy choice in
-the manifest and refuses mixed settings, existing completed seeds, and partial
-attempts in a single pilot directory.
+settings fixed when comparing v1/v2. The shared CLI records the policy choice in an immutable manifest and rejects
+changed settings, duplicate seeds, and partial attempts before loading weights.
 
 Use separate pilot directories for versions, keep the original run, and compare
 matched development seeds 0–4. Start with one v2 episode and inspect it before
-the additional four. Do not assume improvement from these code changes: the
-implementation was tested with scripted inference and tiny random local Qwen3
-weights; actual production-Qwen improvement requires the Colab run.
+the additional four. The supplied v2 seed-0 run still fails; see the matched comparison below.
+Use the remaining development seeds to assess whether the observed changes generalize.
 
 Example after installing the optional inference dependencies:
 
 ```sh
-.venv/bin/python -m game_memory.run_episode \
+.venv/bin/python -m game_memory.pilot --output-dir /path/to/persistent/actor-v2-pilot \
   --backend transformers --strategy full_history --actor-prompt v2 \
   --model-revision cdbee75f17c01a7cc42f958dc650907174af0554 \
-  --dtype float16 --seed 0 --recheck-cost 2 --action-budget 80 \
-  --output-dir /path/to/persistent/actor-v2-pilot
+  --dtype float16 --seed 0 --recheck-cost 2 --action-budget 80
 ```
 
 The real-model CLI still supports the full-history diagnostic only. Wiring P1
 writers into the real bounded-memory CLI and running six conditions is a
 subsequent milestone. Do not mix this actor-policy comparison with evidence for
 memory-format effects or use held-out evaluation seeds during prompt development.
+
+## Supplied seed-0 comparison
+
+Both runs use the same Qwen revision, T4/FP16, greedy decoding, price 2, and budget
+80. This is one matched development instance, not evidence of a general advantage.
+
+| Measure | v1 | v2 |
+| --- | --- | --- |
+| Task success | No | No |
+| Final score | 0.25 | 0.50 |
+| Charged recipe rereads | 34 | 5 |
+| Action repairs | 14 | 4 |
+| Final invalid actions | 1 | 0 |
+| Movement actions | 0 | 1 |
+| Model calls | 60 | 79 |
+| Input tokens | 87,811 | 135,804 |
+| Episode seconds | 144.33 | 202.77 |
+
+V2 reaches the pantry and takes flour, then puts it down repeatedly. It examines
+the shelf 45 times, including 28 consecutive final actions. Water remains on the
+kitchen counter. It never returns to the kitchen to prepare/eat the meal. All 75
+primary requests retain the complete visible history; maximum input is 2,567
+tokens, so this is not context truncation. A separate public-action replay can
+recover from its step-30 state and finish in five more actions. That is a manual
+mechanics check, not a model success or a policy to give the agent.
+
+Reduced rereading alone is insufficient: v2 spends the saved budget on more
+unsuccessful actions, increasing inference usage. Preserve these traces, assess
+the remaining development seeds, and diagnose capability before the six-condition
+memory experiment. The orchestration refactor changes neither actor prompt.
 
 ## Offline inspection
 

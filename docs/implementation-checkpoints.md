@@ -8,7 +8,7 @@ acceptance expectations, executable commands, artifacts, and remaining limits.
 | Gate | Deliverable and acceptance evidence | Research decision |
 | --- | --- | --- |
 | Environment (S1) | Real simulator regression suite; matched scripted replays at prices 2/5. Already verified. | Audit alternate free information access and the cost intervention. |
-| Real backend and history diagnostic (L1/S2) | Pinned adapter and real T4/FP16 seed-0 trace executed with valid accounting but unsuccessful gameplay. Actor v2 implemented after trace audit; its real-model effect and the wider development pilot remain pending. | Diagnose capability before attributing failures to forgetting. |
+| Real backend and history diagnostic (L1/S2) | Pinned adapter and real T4/FP16 v1/v2 seed-0 traces executed with valid accounting but unsuccessful gameplay. See actor-policy.md for the matched comparison; the remaining development instances are pending. | Diagnose capability before attributing failures to forgetting. |
 | Memory (P1/P2) | Three P1 strategies implemented with exact rendering, shared hybrid allowance, repair/fallback, and fixture isolation tests. Production Qwen/tokenizer integration and remaining P2 acceptance checks are pending. | Assess retained/omitted/contradicted/invented facts and equal evidence access. |
 | Real integration (S2) | At least one real episode in each of the six conditions with independently audited totals. Pending. | Distinguish interface/format errors from gameplay losses. |
 | Batches and analysis (S3/C1/C2) | Stable logical IDs, safe writes, interruption/resume, coverage checks, synthetic hand-calculated summaries. Pending. | Keep missing runs, duplicates, infrastructure errors, and losses distinct; preserve matching. |
