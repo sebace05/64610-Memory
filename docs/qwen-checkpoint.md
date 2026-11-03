@@ -68,6 +68,45 @@ The CUDA-enabled PyTorch distribution also requires a compatible NVIDIA driver.
 The adapter fails if CUDA or the explicitly selected precision is unsupported;
 it does not change devices, precision, or quantization automatically.
 
+### Colab Java cgroup warnings and Py4J startup
+
+Some Colab Java 21 runtimes print `[warning][os,container]` cgroup messages to
+stdout before the Py4J gateway's numeric port. Py4J tries to parse the first line
+as an integer and raises `ValueError: invalid literal for int()`. The subsequent
+`TextWorldExpressEnv` destructor error about a missing `_gateway` is secondary:
+construction failed before that field could be assigned.
+
+The notebook appends the following Java 9+ unified-logging options to the
+subprocess environment, preserving existing `JAVA_TOOL_OPTIONS`:
+
+```text
+-Xlog:os+container=off:stdout -Xlog:os+container=warning:stderr
+```
+
+These options route container warnings/errors to stderr and leave stdout free
+for the gateway protocol. They do not disable container detection, change the
+Python/Java versions, or modify installed packages. For an already-open notebook,
+run this cell before retrying the tests and keep this same `ENV` for inference:
+
+```python
+ENV["JAVA_TOOL_OPTIONS"] = (
+    ENV.get("JAVA_TOOL_OPTIONS", "")
+    + " -Xlog:os+container=off:stdout"
+    + " -Xlog:os+container=warning:stderr"
+).strip()
+result = subprocess.run(
+    [PYTHON, "-m", "pytest", "-q"], cwd=REPO_DIR, env=ENV,
+    text=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+)
+print(result.stdout)
+result.check_returncode()
+```
+
+Rerunning the original installation cell in an older notebook recreates `ENV`;
+add the fix immediately after its `ENV = ...` assignment if rerunning that cell.
+Native tests reproduce noisy JVM stdout with container trace logging and verify
+that the notebook options restore a real simulator reset.
+
 Replace the revision placeholder with the full checkpoint commit SHA. Use a new
 output directory for each configuration or repeat attempt:
 

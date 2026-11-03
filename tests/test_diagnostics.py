@@ -31,7 +31,7 @@ def test_full_history_keeps_recipe_after_later_observations_without_writer_calls
                              FakeModel(actions=("look around",)), output_dir=tmp_path)
     events = [json.loads(line) for line in
               (tmp_path / result["episode_id"] / "events.jsonl").read_text().splitlines()]
-    assert result["status"] == "completed"
+    assert result["status"] == "completed", result.get("error")
     assert result["kind"] == "integration_fixture"
     assert not events[0]["memory_token_limit_applies"]
     requests = [e for e in events if e["event"] == "model_request"]
