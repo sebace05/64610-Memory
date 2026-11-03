@@ -58,6 +58,8 @@ def test_diagnostic_actor_must_match_configuration(tmp_path):
      "immutable 40-character"),
     (["--seeds", "0", "0"], "duplicate game seeds"),
     (["--seed", "-1"], "invalid seed"),
+    (["--num-locations", "0"], "num_locations must be"),
+    (["--num-ingredients", "0"], "num_ingredients must be"),
 ])
 def test_cli_rejects_invalid_experiments_before_loading_weights(monkeypatch, capsys, arguments, expected):
     from game_memory.run_episode import main
@@ -87,3 +89,15 @@ def test_mechanics_rules_are_rejected_for_limited_inventory_before_startup(tmp_p
             run_episode(config, env, PromptedActor(full_history=True, prompt_version="v2-mechanics"),
                         FullHistoryMemory(), FakeModel(), output_dir=tmp_path)
     assert not list(tmp_path.iterdir())
+
+
+def test_smaller_game_settings_are_used_and_logged_by_cli(tmp_path):
+    from game_memory.run_episode import main
+    assert main(["--strategy", "full_history", "--num-locations", "1", "--num-ingredients", "1",
+                 "--action-budget", "1", "--output-dir", str(tmp_path)]) == 0
+    result = json.loads(next(tmp_path.glob("*/result.json")).read_text())
+    assert result["config"]["game"]["num_locations"] == 1
+    assert result["config"]["game"]["num_ingredients"] == 1
+    events = [json.loads(s) for s in next(tmp_path.glob("*/events.jsonl")).read_text().splitlines()]
+    reset = next(e for e in events if e["event"] == "reset")
+    assert reset["environment"]["game_config"] == result["config"]["game"]

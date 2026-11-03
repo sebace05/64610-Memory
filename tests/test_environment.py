@@ -11,6 +11,17 @@ from game_memory import CookingWorldConfig, CookingWorldEnvironment
 SMALL = CookingWorldConfig(num_locations=1, num_ingredients=2)
 
 
+def test_one_room_one_ingredient_game_can_finish_through_public_actions():
+    # Mechanics fixture only: this script is never supplied to an agent.
+    with CookingWorldEnvironment() as env:
+        env.reset(0, CookingWorldConfig(num_locations=1, num_ingredients=1))
+        for action in ["open fridge", "take chicken wing", "cook chicken wing in toaster",
+                       "prepare meal", "eat meal"]:
+            assert action in env.view.allowed_actions
+            result = env.step(action)
+        assert result.success and result.terminated
+
+
 def test_mechanics_primer_preparation_rules_match_the_real_simulator():
     # Public-action mechanics fixture, not a model policy or model success.
     with CookingWorldEnvironment() as env:

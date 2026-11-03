@@ -5,13 +5,14 @@ import os
 from pathlib import Path
 
 from .actor import PROMPT_VERSIONS, PromptedActor
+from .contracts import CookingWorldConfig
 from .environment import CookingWorldEnvironment
 from .diagnostics import FullHistoryMemory
 from .integration_fixtures import FakeMemory, FakeModel
 from .runner import EpisodeConfig, run_episode
 
 
-def main(argv=None) -> int:
+def main(argv=None, *, model=None) -> int:
     # Read launch options, not saved JSON artifacts. Example:
     # python -m game_memory.run_episode --strategy hybrid --recheck-cost 5
     parser = argparse.ArgumentParser(description=__doc__)
@@ -26,6 +27,8 @@ def main(argv=None) -> int:
     seeds.add_argument("--seeds", type=int, nargs="+")
     parser.add_argument("--action-budget", type=int, default=None)
     parser.add_argument("--memory-token-limit", type=int, default=256)
+    parser.add_argument("--num-locations", type=int, default=3)
+    parser.add_argument("--num-ingredients", type=int, default=2)
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--model-id", default="Qwen/Qwen3-4B-Instruct-2507")
     parser.add_argument("--model-revision", help="Immutable 40-character Hugging Face commit")
@@ -58,7 +61,9 @@ def main(argv=None) -> int:
     try:
         configs = [EpisodeConfig(seed=seed, strategy=args.strategy,
                                  recheck_cost=args.recheck_cost, action_budget=budget,
-                                 memory_token_limit=args.memory_token_limit)
+                                 memory_token_limit=args.memory_token_limit,
+                                 game=CookingWorldConfig(num_locations=args.num_locations,
+                                                         num_ingredients=args.num_ingredients))
                    for seed in selected_seeds]
         if args.backend == "transformers":
             from .transformers_model import TransformersConfig
@@ -71,6 +76,8 @@ def main(argv=None) -> int:
             )
     except ValueError as error:
         parser.error(str(error))
+    if model is not None and (args.backend != "transformers" or model.config != model_config):
+        parser.error("loaded model settings changed; restart the model session")
     default_output = ("artifacts/qwen-diagnostics" if args.backend == "transformers" else
                       "artifacts/qwen-diagnostic-fixtures" if args.strategy == "full_history" else
                       "artifacts/s2-fixtures")
@@ -89,10 +96,10 @@ def main(argv=None) -> int:
             print(f"Pilot prepared: {output_dir / 'pilot-manifest.json'}")
             print(manifest["runtime"])
             return 0
-    if args.backend == "transformers":
+    if args.backend == "transformers" and model is None:
         from .transformers_model import TransformersModel
         model = TransformersModel(model_config)
-    else:
+    elif args.backend == "fake":
         model = None  # Create a fresh script for each fixture episode.
     for config in configs:
         full_history = config.strategy == "full_history"

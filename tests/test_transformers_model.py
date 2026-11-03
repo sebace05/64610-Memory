@@ -150,3 +150,41 @@ def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_ada
     replies = [event for event in events if event["event"] == "model_response"]
     assert result["input_tokens"] == sum(event["input_tokens"] for event in replies)
     assert result["output_tokens"] == sum(event["output_tokens"] for event in replies)
+
+
+def test_colab_session_reuses_model_but_starts_fresh_auditable_games(tiny_adapter, tmp_path):
+    import json
+    from dataclasses import asdict, replace
+    from pathlib import Path
+    import sys
+    from game_memory.colab_session import ColabSession
+    from game_memory.summarize_diagnostics import summarize
+
+    settings = asdict(replace(tiny_adapter.config, context_limit=4096))
+    session = ColabSession(sys.executable, Path(__file__).resolve().parents[1], settings,
+                           tmp_path / "session.log")
+    pid = session.process.pid
+    first = tmp_path / "first"
+    second = tmp_path / "second"
+    arguments = ["--strategy", "full_history", "--actor-prompt", "v2-mechanics",
+                 "--action-budget", "1", "--num-locations", "1", "--num-ingredients", "1"]
+    try:
+        for directory, seed in [(first, "0"), (second, "1")]:
+            session.run([*arguments, "--output-dir", str(directory), "--seed", seed])
+            assert session.process.pid == pid and session.process.poll() is None
+            assert summarize(directory)["logging_checks_passed"]
+            events = [json.loads(s) for s in next(directory.glob("*/events.jsonl")).read_text().splitlines()]
+            update = next(e for e in events if e["event"] == "memory_update")
+            assert update["previous_memory"] == "[]"
+            assert len(json.loads(update["memory"])) == 1
+        original = next(first.glob("*/result.json")).read_bytes()
+        with pytest.raises(RuntimeError, match="status 2"):
+            session.run([*arguments, "--output-dir", str(first), "--seed", "0"])
+        assert next(first.glob("*/result.json")).read_bytes() == original
+        with pytest.raises(RuntimeError, match="status 2"):
+            session.run([*arguments, "--dtype", "float16", "--output-dir", str(tmp_path / "changed")])
+        assert not (tmp_path / "changed").exists()
+    finally:
+        session.close()
+    assert session.process.poll() == 0
+    assert (tmp_path / "session.log").read_text().count('"ready": true') == 1
