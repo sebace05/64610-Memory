@@ -1,5 +1,12 @@
 # Actor policy revisions and failure analysis
 
+Decoding caveat: historical "greedy" labels below describe the intended setting.
+The successful v3 session log revealed that Transformers 4.57 inherited
+`do_sample=True` despite the adapter's metadata. Earlier traces remain unchanged;
+the adapter now disables model-default merging and records that setting per call.
+Do not treat historical labels as verified greedy inference or pool those runs
+with the corrected policy.
+
 ## Why v2 exists
 
 Development episode `4168f196f79e4a5db196c993cc071686` used
@@ -76,7 +83,10 @@ grilling. All four actions were legal; the last caused terminal failure at score
 The `v3` candidate only prepends generic appliance rules (stove fries, oven roasts,
 toaster grills) and a warning about irreversible cooking mistakes to v2-mechanics.
 It supplies no ingredient names or action sequence, and filters no legal actions.
-Actual Qwen improvement remains unverified; the notebook selects one matched run.
+V3 subsequently completed seed 0 (`c4dfb5b248b744099d07e9f7539f0227`) by grilling,
+preparing, and eating the meal: 7 actions, budget 8/80, no invalid outputs/repairs.
+This is one observed success with the decoding caveat above. The notebook now
+repeats the unchanged v3 task/prompt under explicitly enforced greedy decoding.
 
 The original model revision, FP16, greedy decoding, budget 80, and price 2 remain
 fixed. Keep these non-policy

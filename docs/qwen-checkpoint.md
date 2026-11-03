@@ -10,8 +10,8 @@ Do not start the memory pilot from an older notebook copy.
 | Area | Evidence | Still unverified |
 | --- | --- | --- |
 | Simulator and runner | Automated real-Java tests; fixed replay/accounting checks. | Nothing here establishes model capability. |
-| Qwen inference | Two larger-game T4/FP16 traces plus one audited small-game trace with complete accounting. | Useful completion across development games; all three audited runs lose. |
-| Actor | Small-game v2-mechanics rereads, opens fridge, takes ingredient, then incorrectly roasts instead of grilling. The recipe remained in its input. | V3 adds only appliance semantics; actual Qwen improvement is unverified. |
+| Qwen inference | Four audited T4/FP16 episodes: three losses and one real small-game success. | Reliable completion under the corrected decoding policy and across development games. |
+| Actor | V3 successfully grills, prepares, and eats the meal: 7 actions, budget 8/80, no repairs. | The successful run inherited sampling despite greedy metadata; the prompt is fixed for the corrected-policy repeat. |
 | Memory | Existing prose/JSON writers have repair, fallback, rendering-limit, and isolation tests, including tiny local model integration. | Production Qwen/tokenizer integration and real bounded-memory episodes. |
 | Execution | Shared manifest guards, Java handling, durable logs; a tiny local model runs two fresh games in the same loaded process. | Production-Qwen session reuse and the current notebook still require a Colab run. |
 
@@ -30,9 +30,11 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
    reread price 2, greedy decoding, context limit 8,192, and generation seed 0.
    The new condition sets `num_locations=1`, `num_ingredients=1`, and `FIRST_SEED=0`.
    The engine still generates the recipe; no scripted solution reaches the model.
-   V3 only adds stove=fry, oven=roast, toaster=grill and the warning that legal
-   cooking actions may ruin an ingredient. All other settings match the audited
-   small-game failure. Choose **Runtime → Run all** and authorize Drive if prompted.
+   Keep the successful v3 prompt unchanged. The adapter now passes
+   `use_model_defaults=False`: Transformers 4.57 previously overrode its requested
+   greedy configuration with checkpoint sampling defaults. Existing success/loss
+   traces remain development evidence with that protocol deviation; do not pool
+   them with corrected-policy runs. Choose **Runtime → Run all** and authorize Drive if prompted.
    It runs the following stages automatically, then stops after one episode.
 3. Sections 1–3 preserve the pinned checkout, mount Drive, install
    isolated dependencies, and save CPU/Java/adapter checks plus a dependency freeze.
@@ -48,12 +50,11 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
    If a run/audit fails, the final download cell can still package available logs.
 7. When finished, run `session.close()` in a new cell and disconnect the GPU.
 
-The earlier v2 run used about **203 seconds playing plus 101 seconds loading**.
-Reuse targets that loading cost, not inference time; setup/download/idle time is
-additional. Production-Qwen timings for the session path remain unmeasured.
-The audited small-game run instead took 7.08 seconds playing and 101.72 seconds
-loading, ending in terminal failure after 4 actions. One matched run is justified
-to test the confirmed missing appliance instructions. No further jobs are scheduled automatically.
+The successful small-game run took **10.84 seconds playing plus 89.67 seconds
+loading**, excluding setup/tests/idle time. Reuse targets loading cost; warm-run
+timings and longer games still need measurement. One seed-0 repeat is justified
+to confirm actual greedy gameplay after correcting the decoder. Do not change
+the prompt or task at the same time. No further jobs are scheduled automatically.
 
 ## Fast development loop within one live runtime
 

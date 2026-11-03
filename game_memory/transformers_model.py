@@ -101,7 +101,8 @@ class TransformersModel:
             "implementation": "TransformersModel", "is_fake": False,
             **asdict(config), "tokenizer_revision": config.revision,
             "effective_context_limit": self._context_limit,
-            "do_sample": False, "num_beams": 1, "attention_implementation": "sdpa",
+            "do_sample": False, "num_beams": 1, "use_model_defaults": False,
+            "attention_implementation": "sdpa",
             **runtime,
             "load_seconds": time.perf_counter() - started,
             "latency_scope": "synchronized_generate_excludes_tokenization_transfer_decode",
@@ -150,13 +151,16 @@ class TransformersModel:
         self._synchronize()
         started = time.perf_counter()
         with torch.inference_mode():
-            output = self._model.generate(**inputs, generation_config=settings)
+            # Otherwise Transformers 4.57 can replace False/1 with checkpoint
+            # sampling/beam defaults because they match global default values.
+            output = self._model.generate(**inputs, generation_config=settings, use_model_defaults=False)
         self._synchronize()
         elapsed = time.perf_counter() - started
         generated = output[0, input_tokens:].tolist()
         eos = self._eos_token_id if isinstance(self._eos_token_id, list) else [self._eos_token_id]
         stopped = bool(generated) and generated[-1] in eos
         details = {
+            "do_sample": False, "num_beams": 1, "use_model_defaults": False,
             "finish_reason": "eos" if stopped else "length",
             "max_new_tokens": cap,
             "peak_cuda_allocated_bytes": (torch.cuda.max_memory_allocated()

@@ -67,6 +67,31 @@ def test_actual_generation_uses_fresh_prompts_and_real_token_counts(tiny_adapter
     assert tiny_adapter.metadata["revision"] == "0" * 40
 
 
+@pytest.mark.parametrize("purpose", ["action", "action_repair", "memory", "memory_repair"])
+def test_checkpoint_sampling_defaults_cannot_override_greedy_decoding(tiny_adapter, monkeypatch, purpose):
+    from copy import deepcopy
+
+    defaults = deepcopy(tiny_adapter._model.generation_config)
+    defaults.transformers_version = "4.57.6"
+    defaults.do_sample, defaults.num_beams = True, 3
+    defaults.temperature, defaults.top_k, defaults.top_p = 0.7, 20, 0.8
+    monkeypatch.setattr(tiny_adapter._model, "generation_config", defaults)
+    prepare = tiny_adapter._model._prepare_generation_config
+    effective = []
+
+    def capture(*args, **kwargs):
+        config, model_kwargs = prepare(*args, **kwargs)
+        effective.append(config)
+        return config, model_kwargs
+
+    monkeypatch.setattr(tiny_adapter._model, "_prepare_generation_config", capture)
+    response = tiny_adapter.generate((Message("user", "look around"),), purpose=purpose)
+    assert len(effective) == 1
+    assert effective[0].do_sample is False
+    assert effective[0].num_beams == 1
+    assert response.metadata["use_model_defaults"] is False
+
+
 def test_prompt_is_not_echoed_and_eos_is_counted(tiny_adapter, monkeypatch):
     import torch
     generated = tiny_adapter._tokenizer.encode("look around", add_special_tokens=False)
