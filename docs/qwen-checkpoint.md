@@ -21,8 +21,10 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
 
 ## Exact next action in Colab
 
-1. Upload the supplied ready-to-run notebook as a fresh Colab copy. Its REPO_REF
-   pins the implementation; do not substitute a SHA into an older notebook.
+1. Open [the current notebook in Colab](https://colab.research.google.com/github/sebace05/64610-Memory/blob/main/notebooks/qwen_colab.ipynb).
+   `REPO_REF=None` resolves main once, checks out that immutable commit, and records
+   it. Set a full SHA for a frozen protocol or exact replay. Reopen this link for
+   code/configuration updates; a saved Colab copy retains its own configuration.
 2. Select a **T4 GPU**. Keep Qwen revision
    `cdbee75f17c01a7cc42f958dc650907174af0554`, FP16, actor `v3`, budget 80,
    reread price 2, greedy decoding, context limit 8,192, and generation seed 0.
@@ -30,12 +32,14 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
    The engine still generates the recipe; no scripted solution reaches the model.
    V3 only adds stove=fry, oven=roast, toaster=grill and the warning that legal
    cooking actions may ruin an ingredient. All other settings match the audited
-   small-game failure. Close an older live session before loading the new code.
-3. Run sections 1–3 once. Preserve the pinned checkout, mount Drive, install
+   small-game failure. Choose **Runtime → Run all** and authorize Drive if prompted.
+   It runs the following stages automatically, then stops after one episode.
+3. Sections 1–3 preserve the pinned checkout, mount Drive, install
    isolated dependencies, and save CPU/Java/adapter checks plus a dependency freeze.
 4. Run section 4. It validates hardware and records the attempt's immutable
    manifest without loading weights. Old data is never adopted or overwritten.
-5. Run section 5 once. It loads Qwen in the isolated Python process and prints
+5. Section 5 reuses a matching live session or closes it before loading changed
+   code/model settings. A new session loads Qwen in the isolated process and prints
    `ready: true` plus the measured model-loading time. Only the connection lives
    in the Colab notebook kernel; its preinstalled libraries stay separate.
 6. Run section 6 once. It creates a fresh environment and history, using the
@@ -59,9 +63,15 @@ Skip installation/tests and model loading while code/dependencies/model settings
 are unchanged. Every attempt remains a separate condition with fresh game state,
 history, and inference accounting. Only model weights/tokenizer persist.
 
+For a simpler repeat, choose **Run all** again. It creates a new attempt and
+rechecks dependencies/tests; a compatible loaded model is reused. The section
+selection above avoids repeating checks when only game settings change.
+Colab still needs a connected GPU runtime and may request Google authorization;
+this is not an unattended scheduler. This chat cannot start or control that runtime.
+
 Changing model/revision/precision/generation settings requires a new loaded
-session. Changing repository code also requires restarting the session from a
-new committed checkout and rerunning checks; the worker rejects stale code.
+session. Run all replaces it automatically. Repository code changes need a new
+committed checkout and checks; the worker rejects stale code.
 It does not hot-reload code into existing weights. An interrupted notebook read
 closes the worker to avoid pairing a later request with an earlier response.
 

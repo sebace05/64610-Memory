@@ -5,8 +5,10 @@ information affect prose versus structured JSON memory in a CookingWorld agent?
 
 ## Start here
 
-Open **[the Colab notebook](notebooks/qwen_colab.ipynb)** and follow
-**[the checkpoint guide](docs/qwen-checkpoint.md)**. There is one notebook entry point.
+Open **[the notebook in Colab](https://colab.research.google.com/github/sebace05/64610-Memory/blob/main/notebooks/qwen_colab.ipynb)**,
+select T4, and choose **Runtime → Run all**. Authorize Drive if prompted.
+The launcher resolves and records the development commit automatically; set
+`REPO_REF` to a full SHA for a frozen run. See [the checkpoint guide](docs/qwen-checkpoint.md).
 It currently selects a one-room/one-ingredient full-history capability check and
 keeps Qwen loaded between explicitly chosen development runs.
 
