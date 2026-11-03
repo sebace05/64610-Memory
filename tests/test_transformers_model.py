@@ -40,7 +40,7 @@ def tiny_adapter(tmp_path_factory):
     config = transformers.Qwen3Config(
         vocab_size=len(tokenizer), hidden_size=32, intermediate_size=64,
         num_hidden_layers=1, num_attention_heads=2, num_key_value_heads=1,
-        head_dim=16, max_position_embeddings=4096,
+        head_dim=16, max_position_embeddings=8192,
         eos_token_id=tokenizer.eos_token_id, pad_token_id=tokenizer.pad_token_id,
     )
     transformers.Qwen3ForCausalLM(config).save_pretrained(directory, safe_serialization=True)
@@ -160,13 +160,15 @@ def test_colab_session_reuses_model_but_starts_fresh_auditable_games(tiny_adapte
     from game_memory.colab_session import ColabSession
     from game_memory.summarize_diagnostics import summarize
 
-    settings = asdict(replace(tiny_adapter.config, context_limit=4096))
+    # The byte-level fixture expands the full policy and repair beyond 4096;
+    # exercise the same 8192-token allowance as the production checkpoint.
+    settings = asdict(replace(tiny_adapter.config, context_limit=8192))
     session = ColabSession(sys.executable, Path(__file__).resolve().parents[1], settings,
                            tmp_path / "session.log")
     pid = session.process.pid
     first = tmp_path / "first"
     second = tmp_path / "second"
-    arguments = ["--strategy", "full_history", "--actor-prompt", "v2-mechanics",
+    arguments = ["--strategy", "full_history", "--actor-prompt", "v3",
                  "--action-budget", "1", "--num-locations", "1", "--num-ingredients", "1"]
     try:
         for directory, seed in [(first, "0"), (second, "1")]:

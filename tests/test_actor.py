@@ -2,7 +2,7 @@
 
 import pytest
 
-from game_memory.actor import MECHANICS_PRIMER, PromptedActor, validate_action_output
+from game_memory.actor import APPLIANCE_RULES, MECHANICS_PRIMER, PromptedActor, validate_action_output
 from game_memory.components import Generation
 from game_memory.contracts import AgentView
 
@@ -131,3 +131,20 @@ def test_mechanics_candidate_only_prepends_rules_and_retains_v2_repair(full_hist
     assert actor.metadata["requires_unlimited_inventory"] is True
     for seed_specific in ("flour", "water", "pantry", "east", "west"):
         assert seed_specific not in MECHANICS_PRIMER.lower()
+
+
+@pytest.mark.parametrize("full_history", [False, True])
+@pytest.mark.parametrize("invalid", ['not json', '{"action":"take flour"}'])
+def test_v3_only_adds_appliance_rules_to_the_same_input_and_repair(full_history, invalid):
+    original, candidate = Responses(invalid, '{"action":"inventory"}'), Responses(invalid, '{"action":"inventory"}')
+    PromptedActor(full_history=full_history, prompt_version="v2-mechanics").choose_action(view(), "notes", original)
+    actor = PromptedActor(full_history=full_history, prompt_version="v3")
+    assert actor.choose_action(view(), "notes", candidate) == "inventory"
+    assert len(original.calls) == len(candidate.calls) == 2
+    for (before, purpose), (after, candidate_purpose) in zip(original.calls, candidate.calls):
+        assert candidate_purpose == purpose
+        assert after[0].content == APPLIANCE_RULES + "\n\n" + before[0].content
+        assert after[1:] == before[1:]
+    assert actor.metadata["requires_unlimited_inventory"] is True
+    for seed_specific in ("chicken", "wing", "fridge", "east", "west"):
+        assert seed_specific not in APPLIANCE_RULES.lower()

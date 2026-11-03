@@ -10,10 +10,10 @@ Open **[the Colab notebook](notebooks/qwen_colab.ipynb)** and follow
 It currently selects a one-room/one-ingredient full-history capability check and
 keeps Qwen loaded between explicitly chosen development runs.
 
-Two audited real-Qwen runs failed the larger game. A later mechanics-prompt
-failure is reported but its trace has not been audited. Smaller-game success and
-production-Qwen session reuse remain unverified. Local scripted/tiny-model tests
-establish integration, not Qwen capability.
+Two audited real-Qwen runs failed the larger game. The audited smaller-game run
+lost by roasting an ingredient that required grilling. The next prompt (v3) adds
+only the missing appliance rules; success remains unverified. Local
+scripted/tiny-model tests establish integration, not Qwen capability.
 
 After useful gameplay is verified, the Friday MVP is **8 episodes**: prose/JSON
 × reread prices 2/5 × development seeds 0/1, followed by one results table and two

@@ -81,12 +81,13 @@ def test_cli_passes_explicit_prompt_version_and_labels_the_result(tmp_path, monk
     assert result["kind"] == "integration_fixture"
 
 
-def test_mechanics_rules_are_rejected_for_limited_inventory_before_startup(tmp_path):
+@pytest.mark.parametrize("prompt_version", ["v2-mechanics", "v3"])
+def test_mechanics_rules_are_rejected_for_limited_inventory_before_startup(tmp_path, prompt_version):
     from game_memory.contracts import CookingWorldConfig
     config = EpisodeConfig(strategy="full_history", game=CookingWorldConfig(limit_inventory_size=True))
     with CookingWorldEnvironment() as env:
         with pytest.raises(ValueError, match="requires unlimited inventory"):
-            run_episode(config, env, PromptedActor(full_history=True, prompt_version="v2-mechanics"),
+            run_episode(config, env, PromptedActor(full_history=True, prompt_version=prompt_version),
                         FullHistoryMemory(), FakeModel(), output_dir=tmp_path)
     assert not list(tmp_path.iterdir())
 

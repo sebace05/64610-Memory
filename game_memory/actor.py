@@ -7,7 +7,14 @@ from .components import Message, Model
 from .contracts import AgentView
 
 
-PROMPT_VERSIONS = ("v1", "v2", "v2-mechanics")
+PROMPT_VERSIONS = ("v1", "v2", "v2-mechanics", "v3")
+
+APPLIANCE_RULES = (
+    "CookingWorld appliance rules: the stove fries, the oven roasts, and the toaster "
+    "grills. Match the recipe's required cooking method exactly when choosing a "
+    "'cook ... in ...' command. A legal cooking action can still ruin a required "
+    "ingredient and end the game."
+)
 
 MECHANICS_PRIMER = (
     "Game mechanics: To prepare a meal, all required ingredients must be in your "
@@ -83,7 +90,7 @@ class PromptedActor:
                 "prompt_version": f"{prefix}-{self.prompt_version}",
                 "context_mode": "full_history" if self.full_history else "bounded_memory",
                 "max_repairs": 1, "is_fake": False}
-        if self.prompt_version == "v2-mechanics":
+        if self.prompt_version in ("v2-mechanics", "v3"):
             metadata["requires_unlimited_inventory"] = True
         return metadata
 
@@ -97,8 +104,10 @@ class PromptedActor:
                     'Return only a JSON object of the form {"action": "exact permitted action"}.')
         if self.prompt_version != "v1":
             instructions = _progress_instructions(context_name)
-        if self.prompt_version == "v2-mechanics":
+        if self.prompt_version in ("v2-mechanics", "v3"):
             instructions = MECHANICS_PRIMER + "\n\n" + instructions
+        if self.prompt_version == "v3":
+            instructions = APPLIANCE_RULES + "\n\n" + instructions
         messages = (
             Message("system", instructions),
             # Serialize the public view, then append memory literally. Encoding

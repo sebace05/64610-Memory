@@ -22,6 +22,21 @@ def test_one_room_one_ingredient_game_can_finish_through_public_actions():
         assert result.success and result.terminated
 
 
+@pytest.mark.parametrize("appliance,method", [("stove", "fry"), ("oven", "roast")])
+def test_legal_wrong_appliance_irreversibly_fails_the_grilling_recipe(appliance, method):
+    with CookingWorldEnvironment() as env:
+        env.reset(0, CookingWorldConfig(num_locations=1, num_ingredients=1))
+        env.step("open fridge")
+        env.step("take chicken wing")
+        action = f"cook chicken wing in {appliance}"
+        assert action in env.view.allowed_actions
+        result = env.step(action)
+        assert result.valid_action and result.executed
+        assert method in result.view.observation
+        assert result.failure and result.termination_reason == "terminal_failure"
+        assert result.score == 0.25
+
+
 def test_mechanics_primer_preparation_rules_match_the_real_simulator():
     # Public-action mechanics fixture, not a model policy or model success.
     with CookingWorldEnvironment() as env:

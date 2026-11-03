@@ -10,8 +10,8 @@ Do not start the memory pilot from an older notebook copy.
 | Area | Evidence | Still unverified |
 | --- | --- | --- |
 | Simulator and runner | Automated real-Java tests; fixed replay/accounting checks. | Nothing here establishes model capability. |
-| Qwen inference | Two supplied T4/FP16 seed-0 traces, with clean source/model revisions and complete accounting. | Useful completion across development games. Both supplied runs lose by budget exhaustion. |
-| Actor v2 | Fewer unavailable requests and rereads, and higher score on seed 0. | It still discards ingredients and loops on a shelf. The subsequent mechanics-candidate failure is reported but its latest trace has not been supplied for audit. |
+| Qwen inference | Two larger-game T4/FP16 traces plus one audited small-game trace with complete accounting. | Useful completion across development games; all three audited runs lose. |
+| Actor | Small-game v2-mechanics rereads, opens fridge, takes ingredient, then incorrectly roasts instead of grilling. The recipe remained in its input. | V3 adds only appliance semantics; actual Qwen improvement is unverified. |
 | Memory | Existing prose/JSON writers have repair, fallback, rendering-limit, and isolation tests, including tiny local model integration. | Production Qwen/tokenizer integration and real bounded-memory episodes. |
 | Execution | Shared manifest guards, Java handling, durable logs; a tiny local model runs two fresh games in the same loaded process. | Production-Qwen session reuse and the current notebook still require a Colab run. |
 
@@ -24,10 +24,13 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
 1. Upload the supplied ready-to-run notebook as a fresh Colab copy. Its REPO_REF
    pins the implementation; do not substitute a SHA into an older notebook.
 2. Select a **T4 GPU**. Keep Qwen revision
-   `cdbee75f17c01a7cc42f958dc650907174af0554`, FP16, actor `v2-mechanics`, budget 80,
+   `cdbee75f17c01a7cc42f958dc650907174af0554`, FP16, actor `v3`, budget 80,
    reread price 2, greedy decoding, context limit 8,192, and generation seed 0.
    The new condition sets `num_locations=1`, `num_ingredients=1`, and `FIRST_SEED=0`.
    The engine still generates the recipe; no scripted solution reaches the model.
+   V3 only adds stove=fry, oven=roast, toaster=grill and the warning that legal
+   cooking actions may ruin an ingredient. All other settings match the audited
+   small-game failure. Close an older live session before loading the new code.
 3. Run sections 1–3 once. Preserve the pinned checkout, mount Drive, install
    isolated dependencies, and save CPU/Java/adapter checks plus a dependency freeze.
 4. Run section 4. It validates hardware and records the attempt's immutable
@@ -37,15 +40,16 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
    in the Colab notebook kernel; its preinstalled libraries stay separate.
 6. Run section 6 once. It creates a fresh environment and history, using the
    already-loaded model/tokenizer. Then run section 7 and the ZIP-download cells.
-   Return both this ZIP and the failed mechanics-checkpoint ZIP for trace inspection.
+   Return this ZIP for comparison with the already-audited small-game trace.
    If a run/audit fails, the final download cell can still package available logs.
 7. When finished, run `session.close()` in a new cell and disconnect the GPU.
 
 The earlier v2 run used about **203 seconds playing plus 101 seconds loading**.
 Reuse targets that loading cost, not inference time; setup/download/idle time is
 additional. Production-Qwen timings for the session path remain unmeasured.
-One real smaller-game run is justified to establish basic gameplay after reported
-failure of the mechanics correction. No further jobs are scheduled automatically.
+The audited small-game run instead took 7.08 seconds playing and 101.72 seconds
+loading, ending in terminal failure after 4 actions. One matched run is justified
+to test the confirmed missing appliance instructions. No further jobs are scheduled automatically.
 
 ## Fast development loop within one live runtime
 

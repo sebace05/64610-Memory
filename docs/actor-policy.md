@@ -64,11 +64,19 @@ instructions and repair feedback are identical. No locations of ingredients or
 seed-specific action sequence is provided, and no action is forced or filtered.
 Actual Qwen improvement from this primer is still unverified.
 
-After a reported further failure (latest trace not yet supplied), the current
-notebook keeps that prompt and selects one room/one ingredient for a separate
-capability check. This changes generated recipes as well as navigation, so it
-must not be presented as a controlled prompt comparison with the earlier games.
-No Qwen success on the smaller setting has been verified.
+The subsequent v2-mechanics capability check selected one room/one ingredient.
+This changed generated recipes as well as navigation, so it is a separate task
+configuration from the earlier larger games. No Qwen success on it has been verified.
+
+The supplied small-game ZIP now confirms episode `b2915faebfd34093b67938921d71fce9`:
+`examine cookbook` → `open fridge` → `take chicken wing` →
+`cook chicken wing in oven`. The oven roasts, but the retained recipe required
+grilling. All four actions were legal; the last caused terminal failure at score
+0.25 with 75 budget units remaining. There were no repairs or infrastructure errors.
+The `v3` candidate only prepends generic appliance rules (stove fries, oven roasts,
+toaster grills) and a warning about irreversible cooking mistakes to v2-mechanics.
+It supplies no ingredient names or action sequence, and filters no legal actions.
+Actual Qwen improvement remains unverified; the notebook selects one matched run.
 
 The original model revision, FP16, greedy decoding, budget 80, and price 2 remain
 fixed. Keep these non-policy

@@ -22,7 +22,7 @@ def main(argv=None, *, model=None) -> int:
                         default="prose")
     parser.add_argument("--recheck-cost", type=int, choices=[2, 5], default=2)
     parser.add_argument("--actor-prompt", choices=PROMPT_VERSIONS, default="v1",
-                        help="v1 is the baseline; v2 adds progress guidance; v2-mechanics adds preparation rules")
+                        help="v1 is the baseline; v2 adds progress guidance; v2-mechanics adds preparation rules; v3 adds appliance rules")
     seeds = parser.add_mutually_exclusive_group()
     seeds.add_argument("--seed", type=int, default=0)
     seeds.add_argument("--seeds", type=int, nargs="+")
