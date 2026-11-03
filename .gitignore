@@ -3,3 +3,5 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 .DS_Store
+artifacts/qwen-diagnostics/
+artifacts/qwen-diagnostic-fixtures/

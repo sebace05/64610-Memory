@@ -8,6 +8,7 @@ _LoggedModel records inference calls made by both the actor and memory writer.
 from dataclasses import asdict, dataclass, field
 import json
 from pathlib import Path
+import subprocess
 import time
 from typing import Sequence
 import uuid
@@ -15,6 +16,19 @@ import uuid
 from .components import Actor, Generation, MemoryContext, MemoryStrategy, Message, Model
 from .contracts import CookingWorldConfig
 from .environment import CookingWorldEnvironment
+
+
+def source_metadata() -> dict:
+    """Record source identity without putting Git status contents in the log."""
+    root = Path(__file__).resolve().parents[1]
+    try:
+        commit = subprocess.run(["git", "rev-parse", "HEAD"], cwd=root,
+                                capture_output=True, text=True, check=True, timeout=5)
+        status = subprocess.run(["git", "status", "--porcelain"], cwd=root,
+                                capture_output=True, text=True, check=True, timeout=5)
+        return {"commit": commit.stdout.strip(), "worktree_dirty": bool(status.stdout)}
+    except (OSError, subprocess.SubprocessError):
+        return {"commit": None, "worktree_dirty": None}
 
 
 @dataclass(frozen=True)
@@ -33,7 +47,7 @@ class EpisodeConfig:
         # errors, rather than evidence that an agent failed at the task.
         if type(self.seed) is not int or not 0 <= self.seed <= 2_147_483_647:
             raise ValueError("invalid seed")
-        if self.strategy not in {"prose", "structured", "hybrid"}:
+        if self.strategy not in {"prose", "structured", "hybrid", "full_history"}:
             raise ValueError("unknown memory strategy")
         if type(self.recheck_cost) is not int or self.recheck_cost not in {2, 5}:
             raise ValueError("recheck_cost must be 2 or 5")
@@ -131,6 +145,11 @@ def run_episode(
         raise ValueError("environment costs/budget do not match episode configuration")
     if memory.metadata.get("strategy") != config.strategy:
         raise ValueError("memory strategy does not match episode configuration")
+    full_history = config.strategy == "full_history"
+    if full_history != (actor.metadata.get("context_mode") == "full_history"):
+        raise ValueError("actor context mode does not match episode configuration")
+    if full_history and memory.metadata.get("diagnostic_only") is not True:
+        raise ValueError("full history requires an explicitly diagnostic archive")
     # Copy metadata into JSON-native values (e.g. tuple -> list). This keeps the
     # returned result identical in shape to the result read back from disk.
     components = json.loads(json.dumps({
@@ -139,7 +158,8 @@ def run_episode(
     }))
     # Unknown/unmarked components are conservatively treated as test fixtures.
     is_fixture = any(c.get("is_fake") is not False for c in components.values())
-    kind = "integration_fixture" if is_fixture else "development"
+    kind = "integration_fixture" if is_fixture else (
+        "full_history_diagnostic" if full_history else "development")
     # Unique directories preserve previous runs. Skipping completed experiment
     # configurations on resume is separate S3 work; UUIDs do not implement that.
     episode_id = uuid.uuid4().hex
@@ -156,6 +176,7 @@ def run_episode(
     error_data = None
     outcome = "error"  # Only a valid game ending below changes this to completed.
     reset_complete = False
+    source = source_metadata()
 
     with (directory / "events.jsonl").open("x") as events:
         sequence = 0
@@ -181,7 +202,7 @@ def run_episode(
                 raise TypeError("rendered memory must be text")
             # This is a bound on stored memory, not on the entire action prompt.
             count = logged.count_tokens(text)
-            if count > config.memory_token_limit:
+            if not full_history and count > config.memory_token_limit:
                 raise ValueError("memory component violated the token-limit contract")
             return text, count
 
@@ -204,6 +225,8 @@ def run_episode(
             # 1. Record the planned configuration, then reset the real game.
             emit("episode_start", schema_version=1, episode_id=episode_id, kind=kind,
                  config=asdict(config), components=components,
+                 source=source,
+                 memory_token_limit_applies=not full_history,
                  memory_update_policy="initialize_and_after_nonterminal_actions")
             view = environment.reset(config.seed, config.game)
             reset_complete = True
@@ -255,6 +278,7 @@ def run_episode(
             "status": outcome,
             "config": asdict(config),
             "components": components,
+            "source": source,
             "success": last.success if outcome == "completed" else None,
             "failure": last.failure if outcome == "completed" else None,
             "score": last.score if last else None,

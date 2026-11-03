@@ -8,7 +8,17 @@ Sebastian, Liam, Colin, and Pablo's project for MIT 6.4610 NLP.
 
 We will compare prose notes, structured JSON, and hybrid memory in CookingWorld using TextWorldExpress. Each agent has the same memory allowance and action budget. Recipe rereads cost either 2 or 5 budget units; other actions cost 1. We will compare completion, recipe rechecks, game score, budget consumption, inference tokens, and runtime.
 
-**Current status:** S1 is implemented and verified locally (October 30, 2026): 16 real-simulator tests pass, and three development seeds replay successfully at both rechecking prices. The S2 episode runner and fake integration fixtures are implemented and verified (32 total tests pass); its real-model milestone is still open. Production model inference, research memory strategies, and batch resume are not implemented yet.
+**Current status:** S1 and the S2 fake integration fixtures are implemented and verified. A pinned Transformers/Qwen adapter, explicit full-history capability diagnostic, checkpoint auditor, and thin Colab launcher are now implemented. Adapter inference is tested offline with tiny randomly initialized Qwen3 weights; this does not establish capability of the actual 4B model. The real-Qwen GPU checkpoint is still open. Research memory strategies and batch resume remain unimplemented.
+
+## Start the real-Qwen capability checkpoint
+
+Use [the Colab launcher](notebooks/qwen_colab.ipynb) and the [Qwen checkpoint guide](docs/qwen-checkpoint.md). Keep application code in this repository; the notebook only selects a committed revision, prepares the runtime, and launches commands.
+
+The first milestone is one real-model full-history episode, followed by a small development pilot. Full-history diagnostics retain visible observations/actions without the 256-token memory bound and are explicitly excluded from memory-strategy evaluation. Fake runs remain labeled integration fixtures.
+
+- [Implementation and research checkpoint plan](docs/implementation-checkpoints.md)
+- [Transformers backend](game_memory/transformers_model.py)
+- [Diagnostic log auditor](game_memory/summarize_diagnostics.py)
 
 ## Run the S1 environment verification
 

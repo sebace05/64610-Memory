@@ -4,7 +4,7 @@ Protocols describe required methods; implementations need not inherit from them.
 Frozen dataclasses carry the inputs/outputs shared across module boundaries.
 """
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from typing import Protocol, Sequence
 
@@ -27,6 +27,8 @@ class Generation:
     input_tokens: int
     output_tokens: int
     elapsed_seconds: float
+    # Optional backend evidence, e.g. finish reason and peak CUDA allocation.
+    metadata: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         # Reject invalid usage records before they corrupt episode totals.

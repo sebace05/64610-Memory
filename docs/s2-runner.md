@@ -46,8 +46,10 @@ Saved CLI examples are indexed in `artifacts/s2-fixtures/README.md`.
   tracing, usage accounting, and result records.
 - `integration_fixtures.py`: fake model and fake prose/JSON/hybrid placeholders.
   These are not Pablo's research memory implementations.
-- `run_episode.py`: local CLI for the fake integration run. Real components plug
-  into `runner.run_episode()` programmatically; a real-backend CLI can follow L1.
+- `run_episode.py`: CLI for fake integration runs and an explicit real-Transformers
+  full-history diagnostic. See [the Qwen checkpoint](qwen-checkpoint.md). Real
+  bounded-memory components remain pending; the CLI rejects a real-model run
+  with placeholder research memory.
 
 ## Turn order and isolation
 
