@@ -13,7 +13,8 @@ import time
 from typing import Sequence
 import uuid
 
-from .components import Actor, Generation, MemoryContext, MemoryStrategy, Message, Model
+from .components import (ACTOR_GUARD_FAILURE_PREFIX, Actor, Generation, MemoryContext,
+                         MemoryStrategy, Message, Model)
 from .contracts import CookingWorldConfig
 from .environment import CookingWorldEnvironment
 
@@ -152,6 +153,9 @@ def run_episode(
         raise ValueError("actor context mode does not match episode configuration")
     if full_history and memory.metadata.get("diagnostic_only") is not True:
         raise ValueError("full history requires an explicitly diagnostic archive")
+    reset_actor = getattr(actor, "reset_episode_state", None)
+    if callable(reset_actor):
+        reset_actor()
     # Copy metadata into JSON-native values (e.g. tuple -> list). This keeps the
     # returned result identical in shape to the result read back from disk.
     components = json.loads(json.dumps({
@@ -161,7 +165,8 @@ def run_episode(
     # Unknown/unmarked components are conservatively treated as test fixtures.
     is_fixture = any(c.get("is_fake") is not False for c in components.values())
     kind = "integration_fixture" if is_fixture else (
-        "full_history_diagnostic" if full_history else "development")
+        "full_history_diagnostic" if full_history else
+        "evaluation" if config.game.game_fold == "test" else "development")
     # Unique directories preserve previous runs. Skipping completed experiment
     # configurations on resume is separate S3 work; UUIDs do not implement that.
     episode_id = uuid.uuid4().hex
@@ -177,6 +182,7 @@ def run_episode(
     phase = "initialization"  # Identifies where an exception occurred.
     error_data = None
     outcome = "error"  # Only a valid game ending below changes this to completed.
+    policy_termination_reason = None
     reset_complete = False
     source = source_metadata()
 
@@ -246,6 +252,12 @@ def run_episode(
                 step += 1
                 phase = "action_generation"
                 action = actor.choose_action(view, rendered, logged)
+                if action.startswith(ACTOR_GUARD_FAILURE_PREFIX):
+                    policy_termination_reason = "actor_guard_failure"
+                    emit("actor_guard_failure", step=step, output=action,
+                         observation=view.observation, budget_remaining=view.budget_remaining)
+                    outcome = "completed"
+                    break
                 phase = "environment_step"
                 # 4. The wrapper alone executes actions, charges game-budget
                 # units, and decides success/failure/budget exhaustion.
@@ -281,8 +293,10 @@ def run_episode(
             "config": asdict(config),
             "components": components,
             "source": source,
-            "success": last.success if outcome == "completed" else None,
-            "failure": last.failure if outcome == "completed" else None,
+            "success": (False if policy_termination_reason else last.success)
+                       if outcome == "completed" else None,
+            "failure": (False if policy_termination_reason else last.failure)
+                       if outcome == "completed" else None,
             "score": last.score if last else None,
             "score_raw": last.score_raw if last else None,
             # A failed reset must not report counters from an earlier episode.
@@ -295,7 +309,8 @@ def run_episode(
             "usage_complete": logged.usage_complete,
             "usage_by_purpose": logged.by_purpose,
             "runtime_seconds": time.perf_counter() - started,
-            "termination_reason": last.termination_reason if outcome == "completed"
+            "termination_reason": policy_termination_reason if policy_termination_reason else
+                                  last.termination_reason if outcome == "completed"
                                   else "infrastructure_error",
             "error": error_data,
         }

@@ -1,4 +1,4 @@
-"""Run fixture episodes or explicit real-model full-history diagnostics."""
+"""Run fixture or real-model CookingWorld episodes."""
 
 import argparse
 from dataclasses import asdict
@@ -22,7 +22,7 @@ def main(argv=None, *, model=None) -> int:
                         default="prose")
     parser.add_argument("--recheck-cost", type=int, choices=[2, 5], default=2)
     parser.add_argument("--actor-prompt", choices=PROMPT_VERSIONS, default="v1",
-                        help="v1 is the baseline; v2 adds progress guidance; v2-mechanics adds preparation rules; v3 adds appliance rules")
+                        help="v1 baseline; v2 progress; v2-mechanics preparation; v3 appliance; v4 recipe order; v5 tools; v6 containers; v7 repair; v8 open-priority; v9 priority plus targeted repair; v10 global recipe order; v11 meal finalization; v12 avoid known recipe rereads; v13 recipe precedence")
     seeds = parser.add_mutually_exclusive_group()
     seeds.add_argument("--seed", type=int, default=0)
     seeds.add_argument("--seeds", type=int, nargs="+")
@@ -30,6 +30,7 @@ def main(argv=None, *, model=None) -> int:
     parser.add_argument("--memory-token-limit", type=int, default=256)
     parser.add_argument("--num-locations", type=int, default=3)
     parser.add_argument("--num-ingredients", type=int, default=2)
+    parser.add_argument("--game-fold", choices=["train", "dev", "test"], default="train")
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--model-id", default="Qwen/Qwen3-4B-Instruct-2507")
     parser.add_argument("--model-revision", help="Immutable 40-character Hugging Face commit")
@@ -50,9 +51,6 @@ def main(argv=None, *, model=None) -> int:
     if args.prepare_only and not args.pilot:
         parser.error("--prepare-only requires --pilot")
     if args.backend == "transformers":
-        if args.strategy != "full_history":
-            parser.error("real inference currently requires --strategy full_history; "
-                         "P1 bounded-memory integration with this CLI remains pending")
         if not args.model_revision:
             parser.error("--model-revision is required for real inference")
     elif args.model_revision:
@@ -68,7 +66,8 @@ def main(argv=None, *, model=None) -> int:
                                  recheck_cost=args.recheck_cost, action_budget=budget,
                                  memory_token_limit=args.memory_token_limit,
                                  game=CookingWorldConfig(num_locations=args.num_locations,
-                                                         num_ingredients=args.num_ingredients))
+                                                         num_ingredients=args.num_ingredients,
+                                                         game_fold=args.game_fold))
                    for seed in selected_seeds]
         if args.backend == "transformers":
             from .transformers_model import TransformersConfig
@@ -108,7 +107,14 @@ def main(argv=None, *, model=None) -> int:
         model = None  # Create a fresh script for each fixture episode.
     for config in configs:
         full_history = config.strategy == "full_history"
-        memory = FullHistoryMemory() if full_history else FakeMemory(config.strategy)
+        if full_history:
+            memory = FullHistoryMemory()
+        elif model is None:
+            memory = FakeMemory(config.strategy)
+        else:
+            from .memory import HybridMemory, ProseMemory, StructuredMemory
+            memory = {"prose": ProseMemory, "structured": StructuredMemory,
+                      "hybrid": HybridMemory}[config.strategy]()
         with CookingWorldEnvironment(recheck_cost=config.recheck_cost,
                                       action_budget=config.action_budget) as environment:
             result = run_episode(config, environment,

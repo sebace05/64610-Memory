@@ -125,7 +125,7 @@ class TransformersModel:
         import torch
         from transformers import GenerationConfig
 
-        if purpose not in {"action", "action_repair", "memory", "memory_repair"}:
+        if purpose not in {"action", "action_review", "action_repair", "memory", "memory_repair"}:
             raise ValueError(f"unsupported generation purpose: {purpose}")
         cap = (self.config.action_max_new_tokens if purpose.startswith("action")
                else self.config.memory_max_new_tokens)

@@ -12,15 +12,16 @@ The launcher resolves and records the development commit automatically; set
 It currently selects a one-room/one-ingredient full-history capability check and
 keeps Qwen loaded between explicitly chosen development runs.
 
-One audited v3 run completed the small game in 7 actions, spending 8/80 budget.
-Its session log exposed checkpoint sampling defaults overriding our greedy label.
-The adapter now prevents that override; the next check repeats seed 0 with the
-same prompt under enforced greedy decoding. Earlier results remain preserved.
-
-After useful gameplay is verified, the Friday MVP is **8 episodes**: prose/JSON
-× reread prices 2/5 × development seeds 0/1, followed by one results table and two
-annotated trace windows. Real bounded-memory CLI integration is still pending.
-Hybrid, large evaluations, dashboards, and batch/resume are deferred.
+Local corrected-greedy runs use the RTX 5070 Ti. Two full-history Qwen 4B
+checks succeeded. The original eight-condition bounded-memory MVP exhausted
+the budget in every cell. A later versioned development replay (actor v29,
+memory v16) completed the same prose/JSON × prices 2/5 × seeds 0/1 grid:
+prose won all four, while JSON ended in four gameplay losses. None of these
+eight runs exhausted the budget or repeated an action on consecutive turns;
+all traces passed audit. The actor keeps legal repeat actions available and
+uses model-generated reviews for specific action errors. See the
+[measured results](docs/mvp-results.md). Hybrid, large evaluations, dashboards,
+and batch/resume remain deferred.
 
 ## Code map
 
@@ -46,6 +47,7 @@ PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q
 
 Model-adapter checks require `requirements-model.txt`; they skip when optional
 packages are absent. Production Qwen runs require Colab GPU checks in the guide.
+The optional local RTX 5070 Ti setup and launcher are documented in the [Qwen checkpoint guide](docs/qwen-checkpoint.md#run-the-same-checkpoint-locally-on-an-rtx-5070-ti).
 
 ## Evidence and references
 

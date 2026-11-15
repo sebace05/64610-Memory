@@ -8,8 +8,11 @@ import pytest
 from game_memory import CookingWorldConfig, CookingWorldEnvironment
 from game_memory.actor import PromptedActor
 from game_memory.components import Generation, MemoryUpdate
+from game_memory.contracts import AgentView
+from game_memory.diagnostics import FullHistoryMemory
 from game_memory.integration_fixtures import FakeMemory, FakeModel
 from game_memory.runner import EpisodeConfig, run_episode
+from game_memory.summarize_diagnostics import summarize
 
 
 def execute(tmp_path, config=None, model=None, memory=None):
@@ -76,6 +79,13 @@ class RepairModel(FakeModel):
         return super().generate(messages, purpose=purpose)
 
 
+class RepeatInspectionModel(FakeModel):
+    def generate(self, messages, *, purpose):
+        if purpose in {"action", "action_repair"}:
+            return Generation('{"action":"examine cookbook"}', 10, 3, 0.1)
+        return super().generate(messages, purpose=purpose)
+
+
 def test_action_repair_is_logged_and_counted(tmp_path):
     result, events = execute(tmp_path, EpisodeConfig(action_budget=1), model=RepairModel())
     assert result["status"] == "completed"
@@ -87,6 +97,46 @@ def test_action_repair_is_logged_and_counted(tmp_path):
     assert len(repair["messages"]) == 4
     action = next(e for e in events if e["event"] == "action")
     assert action["transition"]["action"] == "look around"
+
+
+def test_repeated_inspections_reach_budget_with_trace(tmp_path):
+    config = EpisodeConfig(strategy="full_history", action_budget=80)
+    actor = PromptedActor(full_history=True, prompt_version="v11")
+    with CookingWorldEnvironment(action_budget=80) as env:
+        result = run_episode(config, env, actor, FullHistoryMemory(), RepeatInspectionModel(),
+                             output_dir=tmp_path)
+    events = [json.loads(line) for line in
+              (tmp_path / result["episode_id"] / "events.jsonl").read_text().splitlines()]
+    assert result["status"] == "completed"
+    assert result["termination_reason"] == "budget_exhaustion"
+    actions = [event for event in events if event["event"] == "action"]
+    assert len(actions) > 1
+    assert all(event["transition"]["action"] == "examine cookbook" for event in actions)
+    assert not any(event["event"] == "actor_guard_failure" for event in events)
+    report = summarize(tmp_path, include_fixtures=True)
+    assert report["logging_checks_passed"], report["issues"]
+
+
+
+def test_runner_resets_inspection_guard_for_each_episode(tmp_path):
+    actor = PromptedActor(prompt_version="v13")
+    prior_allowed = ("examine cookbook", "open fridge")
+    actor.choose_action(AgentView("old room", "Prepare the meal.", prior_allowed, 10, 2),
+                        "kitchen", FakeModel(actions=("examine cookbook",)))
+    actor.choose_action(AgentView("the kitchen", "Prepare the meal.", prior_allowed, 9, 2),
+                        "kitchen", FakeModel(actions=("open fridge",)))
+
+    config = EpisodeConfig(strategy="prose", action_budget=1)
+    with CookingWorldEnvironment(action_budget=1) as env:
+        result = run_episode(config, env, actor, FakeMemory("prose"),
+                             FakeModel(actions=("examine cookbook",)), output_dir=tmp_path)
+    events = [json.loads(line) for line in
+              (tmp_path / result["episode_id"] / "events.jsonl").read_text().splitlines()]
+    requests = [event for event in events if event["event"] == "model_request"]
+    action = next(event for event in events if event["event"] == "action")
+    assert result["status"] == "completed"
+    assert action["transition"]["action"] == "examine cookbook"
+    assert [request["purpose"] for request in requests if request["purpose"].startswith("action")] == ["action"]
 
 
 def test_failed_repairs_consume_budget_without_substituting_actions(tmp_path):

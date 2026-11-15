@@ -19,7 +19,8 @@ def analyze_events(events: list[dict]) -> dict:
     header = next((e for e in events if e["event"] == "episode_start"), {})
     current_view = None
     responses = {}
-    validations = {"action": Counter(), "action_repair": Counter()}
+    validations = {"action": Counter(), "action_review": Counter(),
+                   "action_repair": Counter()}
     turns = []
     inventory_actions = []
     frequencies = Counter()
@@ -53,10 +54,12 @@ def analyze_events(events: list[dict]) -> dict:
             action = transition.get("action", "")
             view = transition.get("view", {})
             first, first_reason = responses.get((step, "action"), (None, "response_missing"))
+            review, review_reason = responses.get((step, "action_review"), (None, None))
             repair, repair_reason = responses.get((step, "action_repair"), (None, None))
             row = {
                 "step": step, "action": action,
                 "first_response": first, "first_response_validation": first_reason,
+                "review_response": review, "review_response_validation": review_reason,
                 "repair_response": repair, "repair_response_validation": repair_reason,
                 "valid_action": transition.get("valid_action"),
                 "executed": transition.get("executed"),
@@ -97,7 +100,8 @@ def analyze_events(events: list[dict]) -> dict:
         "episode_kind": header.get("kind"),
         "actor": header.get("components", {}).get("actor"),
         "behavior": {
-            "action_output_validation": {p: dict(c) for p, c in validations.items()},
+            "action_output_validation": {p: dict(c) for p, c in validations.items()
+                                         if c or p != "action_review"},
             "action_frequencies": dict(frequencies),
             "movement_attempts": movement_attempts,
             "executed_recipe_rechecks": recipe_count,

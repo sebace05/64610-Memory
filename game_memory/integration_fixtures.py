@@ -26,7 +26,7 @@ class FakeModel:
         return len(text.split())
 
     def generate(self, messages: Sequence[Message], *, purpose: str) -> Generation:
-        if purpose in {"action", "action_repair"}:
+        if purpose in {"action", "action_review", "action_repair"}:
             text = json.dumps({"action": next(self._actions, "look around")})
         elif purpose == "memory":
             # Ignore recipe facts and return a tiny last-action placeholder.

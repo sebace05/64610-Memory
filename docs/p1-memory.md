@@ -97,7 +97,7 @@ and string whitespace count. Raw generation usage is still accounted separately.
 
 ## Shared update policy and accounting
 
-Prompt version `p1-memory-v2` shares the substantive writer instructions across
+Prompt version `p1-memory-v11` shares the substantive writer instructions across
 all formats: preserve useful task information, revise from evidence, avoid
 invented facts, and choose what fits. Only format instructions differ. Every
 writer gets the same permitted fields: rendered previous memory, action, new
@@ -113,12 +113,15 @@ Each update:
 4. If invalid or oversized, calls the same supplied model at most once more with
    `purpose="memory_repair"`. This receives the original messages, rejected
    response, and validation reason; no additional task evidence is introduced.
-5. Accepts a valid, within-limit candidate, or returns the exact previous valid
-   serialized state if repair also fails.
+5. Accepts a valid, within-limit candidate. For prose, if both generations fail,
+   retain confirmed public action evidence with the previous recipe and inventory
+   when it fits; otherwise return the previous valid state. At initialization,
+   the prose fallback retains the public recipe and marks inventory and progress
+   empty. Other formats return the previous valid state.
 
 Events identify the rejected attempt and reason, acceptance, canonicalization,
-and `memory_fallback:previous_valid_memory`. Initialization fallback returns the
-valid empty state supplied as predecessor. No generated memory is truncated.
+and fallback. Prose validation checks that the recipe, confirmed inventory, and
+earlier completed preparation steps survive updates. No generated memory is truncated.
 The runner's independent rendered-memory guard remains authoritative.
 
 All inference, including repairs, passes through the supplied model. The existing

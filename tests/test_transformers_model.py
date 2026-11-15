@@ -67,7 +67,7 @@ def test_actual_generation_uses_fresh_prompts_and_real_token_counts(tiny_adapter
     assert tiny_adapter.metadata["revision"] == "0" * 40
 
 
-@pytest.mark.parametrize("purpose", ["action", "action_repair", "memory", "memory_repair"])
+@pytest.mark.parametrize("purpose", ["action", "action_review", "action_repair", "memory", "memory_repair"])
 def test_checkpoint_sampling_defaults_cannot_override_greedy_decoding(tiny_adapter, monkeypatch, purpose):
     from copy import deepcopy
 
@@ -175,6 +175,45 @@ def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_ada
     replies = [event for event in events if event["event"] == "model_response"]
     assert result["input_tokens"] == sum(event["input_tokens"] for event in replies)
     assert result["output_tokens"] == sum(event["output_tokens"] for event in replies)
+
+
+@pytest.mark.parametrize("strategy", ["prose", "structured", "hybrid"])
+def test_real_inference_cli_runs_bounded_memory_and_audits_isolation(tiny_adapter, tmp_path, strategy):
+    from dataclasses import replace
+    import json
+    from game_memory.run_episode import main
+    from game_memory.summarize_diagnostics import summarize
+
+    adapter = TransformersModel(replace(tiny_adapter.config, context_limit=8192))
+    output = tmp_path / strategy
+    assert main([
+        "--backend", "transformers", "--strategy", strategy, "--actor-prompt", "v3",
+        "--model-revision", adapter.config.revision, "--action-budget", "1",
+        "--num-locations", "1", "--num-ingredients", "1", "--output-dir", str(output),
+    ], model=adapter) == 0
+    result = json.loads(next(output.glob("*/result.json")).read_text())
+    assert result["kind"] == "development"
+    assert result["components"]["memory"]["is_fake"] is False
+    assert result["usage_by_purpose"]["memory"]["calls"] == 1
+    report = summarize(output)
+    assert report["kind"] == "bounded_memory_checkpoint_report"
+    assert report["logging_checks_passed"] and report["real_infrastructure_errors"] == 0
+
+
+def test_real_test_fold_episode_is_labeled_evaluation_and_audited(tiny_adapter, tmp_path):
+    from dataclasses import replace
+    import json
+    from game_memory.run_episode import main
+    from game_memory.summarize_diagnostics import summarize
+
+    adapter = TransformersModel(replace(tiny_adapter.config, context_limit=8192))
+    assert main(["--strategy", "hybrid", "--actor-prompt", "v29",
+                 "--game-fold", "test", "--action-budget", "1",
+                 "--num-locations", "1", "--num-ingredients", "1",
+                 "--output-dir", str(tmp_path)], model=adapter) == 0
+    result = json.loads(next(tmp_path.glob("*/result.json")).read_text())
+    assert result["kind"] == "evaluation"
+    assert summarize(tmp_path)["logging_checks_passed"]
 
 
 def test_colab_session_reuses_model_but_starts_fresh_auditable_games(tiny_adapter, tmp_path):

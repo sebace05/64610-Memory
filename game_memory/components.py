@@ -11,6 +11,9 @@ from typing import Protocol, Sequence
 from .contracts import AgentView
 
 
+ACTOR_GUARD_FAILURE_PREFIX = "[ACTOR_GUARD_FAILURE]"
+
+
 @dataclass(frozen=True)
 class Message:
     """One role/content message sent in a single model request."""

@@ -52,7 +52,8 @@ def test_diagnostic_actor_must_match_configuration(tmp_path):
 
 
 @pytest.mark.parametrize("arguments,expected", [
-    (["--backend", "transformers"], "requires --strategy full_history"),
+    (["--backend", "transformers"], "--model-revision is required"),
+    (["--backend", "transformers", "--strategy", "hybrid"], "--model-revision is required"),
     (["--backend", "transformers", "--strategy", "full_history"], "--model-revision is required"),
     (["--backend", "transformers", "--strategy", "full_history", "--model-revision", "main"],
      "immutable 40-character"),
@@ -81,7 +82,7 @@ def test_cli_passes_explicit_prompt_version_and_labels_the_result(tmp_path, monk
     assert result["kind"] == "integration_fixture"
 
 
-@pytest.mark.parametrize("prompt_version", ["v2-mechanics", "v3"])
+@pytest.mark.parametrize("prompt_version", ["v2-mechanics", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13"])
 def test_mechanics_rules_are_rejected_for_limited_inventory_before_startup(tmp_path, prompt_version):
     from game_memory.contracts import CookingWorldConfig
     config = EpisodeConfig(strategy="full_history", game=CookingWorldConfig(limit_inventory_size=True))
@@ -95,10 +96,12 @@ def test_mechanics_rules_are_rejected_for_limited_inventory_before_startup(tmp_p
 def test_smaller_game_settings_are_used_and_logged_by_cli(tmp_path):
     from game_memory.run_episode import main
     assert main(["--strategy", "full_history", "--num-locations", "1", "--num-ingredients", "1",
-                 "--action-budget", "1", "--output-dir", str(tmp_path)]) == 0
+                 "--game-fold", "test", "--action-budget", "1",
+                 "--output-dir", str(tmp_path)]) == 0
     result = json.loads(next(tmp_path.glob("*/result.json")).read_text())
     assert result["config"]["game"]["num_locations"] == 1
     assert result["config"]["game"]["num_ingredients"] == 1
+    assert result["config"]["game"]["game_fold"] == "test"
     events = [json.loads(s) for s in next(tmp_path.glob("*/events.jsonl")).read_text().splitlines()]
     reset = next(e for e in events if e["event"] == "reset")
     assert reset["environment"]["game_config"] == result["config"]["game"]

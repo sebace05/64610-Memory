@@ -3,23 +3,25 @@
 Use one entry point: [qwen_colab.ipynb](../notebooks/qwen_colab.ipynb).
 It runs **one separately labeled one-room/one-ingredient full-history test on seed 0**.
 Qwen stays loaded for explicitly chosen follow-up runs in the same live runtime.
-Do not start the memory pilot from an older notebook copy.
+This Colab path and the steps for other users remain unchanged. Local development
+has now verified the same pinned Qwen revision on the RTX 5070 Ti; see
+[the local results and trace notes](mvp-results.md).
 
 ## What is actually verified
 
 | Area | Evidence | Still unverified |
 | --- | --- | --- |
-| Simulator and runner | Automated real-Java tests; fixed replay/accounting checks. | Nothing here establishes model capability. |
-| Qwen inference | Four audited T4/FP16 episodes: three losses and one real small-game success. | Reliable completion under the corrected decoding policy and across development games. |
-| Actor | V3 successfully grills, prepares, and eats the meal: 7 actions, budget 8/80, no repairs. | The successful run inherited sampling despite greedy metadata; the prompt is fixed for the corrected-policy repeat. |
-| Memory | Existing prose/JSON writers have repair, fallback, rendering-limit, and isolation tests, including tiny local model integration. | Production Qwen/tokenizer integration and real bounded-memory episodes. |
-| Execution | Shared manifest guards, Java handling, durable logs; a tiny local model runs two fresh games in the same loaded process. | Production-Qwen session reuse and the current notebook still require a Colab run. |
+| Simulator and runner | Automated real-Java tests; fixed replay/accounting checks. | The full suite does not establish useful model behavior by itself. |
+| Qwen inference | RTX 5070 Ti, Qwen 4B pinned revision, FP16, enforced greedy decoding. Full-history v11 succeeded on two development seeds. | Broader capability and memory-strategy effects. |
+| Actor | Two full-history two-ingredient games reached meal preparation and eating. | Some successful traces still deviate from global recipe order. |
+| Memory | Prose/JSON writers have repair, fallback, rendering-limit, and isolation checks. The v29/v16 eight-cell local development replay completed without budget-exhaustion loops; prose won four cells and JSON lost four through gameplay choices. | Broader seeds and a frozen memory-strategy comparison. |
+| Execution | Local real-Qwen manifests, Java handling, durable raw traces, and accounting reports. | Production-Qwen session reuse in Colab remains a separate workflow check. |
 
 Local tests use scripted inference or tiny random weights where indicated.
-They do not evaluate the actual 4B checkpoint. This workspace has no GPU.
-The uploaded traces are evidence of runs performed in Colab, not runs performed here.
+The paired v11 results evaluate the actual checkpoint locally; earlier uploaded
+traces remain evidence of their original Colab runs.
 
-## Exact next action in Colab
+## Shared Colab workflow (unchanged)
 
 1. Open [the current notebook in Colab](https://colab.research.google.com/github/sebace05/64610-Memory/blob/main/notebooks/qwen_colab.ipynb).
    `REPO_REF=None` resolves main once, checks out that immutable commit, and records
@@ -49,6 +51,43 @@ The uploaded traces are evidence of runs performed in Colab, not runs performed 
    Return this ZIP for comparison with the already-audited small-game trace.
    If a run/audit fails, the final download cell can still package available logs.
 7. When finished, run `session.close()` in a new cell and disconnect the GPU.
+
+## Run the same checkpoint locally on an RTX 5070 Ti
+
+This is an optional local path. It does not change the notebook or the steps other
+users follow in Colab. It uses the same model revision, prompt, task, seed, and
+greedy decoding; the local launcher selects BF16, while the shared T4 notebook
+continues to select FP16. Each run gets a new local artifact directory by default.
+
+From the repository root, install Java 17 (if needed), then create the project
+environment and install the pinned model dependencies:
+
+```sh
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements-model.txt
+```
+
+Use a CUDA-enabled PyTorch build compatible with your NVIDIA driver. The launcher
+checks that PyTorch sees the RTX 5070 Ti and supports BF16 before recording a pilot
+or loading model weights. Then run:
+
+```sh
+./scripts/run_local_qwen.sh
+```
+
+The first run downloads the pinned Qwen checkpoint from Hugging Face. Results and
+logs are saved under `artifacts/local-qwen-<UTC timestamp>/`, which is ignored by
+Git. To choose a directory explicitly, pass it as the first argument:
+
+```sh
+./scripts/run_local_qwen.sh artifacts/local-qwen-greedy-repeat
+```
+
+Use a fresh directory for each attempt; pilot manifests reject changed settings
+or duplicate seeds. If BF16 is unavailable in the installed PyTorch build, set
+`LOCAL_QWEN_DTYPE=float16` for an FP16 run. Its manifest records the actual dtype,
+so keep it in its own directory. The local script does not run the Colab-only
+session reuse flow; it launches one episode and exits.
 
 The successful small-game run took **10.84 seconds playing plus 89.67 seconds
 loading**, excluding setup/tests/idle time. Reuse targets loading cost; warm-run
@@ -119,26 +158,15 @@ The final ZIP contains these files, not cached model weights. Old pilots stay in
 their original folders. The Java/Py4J cgroup-warning fix is in the shared Python
 launcher; no installed package or verification setting is patched.
 
-## The remaining MVP, behind the checkpoint
+## Completed local development MVP
 
-1. **Inspect gameplay.** A valid ending is not a useful-gameplay pass. Check
-   exploration, carried ingredients, progress toward preparing/eating, and loops.
-   If planning remains blocked, retain a reproducible diagnostic and choose the
-   smallest evidence-backed next step. Do not fill a memory-results table with fixtures.
-2. **Integrate two memories.** Connect existing `ProseMemory` and
-   `StructuredMemory` to real inference. Verify the same 256-token rendered-memory
-   limit, one repair/previous-valid-state fallback, writer/actor usage accounting,
-   and isolation. No raw history, scores, scripted paths, or hidden simulator state
-   belongs in bounded-agent inputs.
-3. **Measure one bounded episode.** Its writer calls add cost; the full-history
-   run cannot forecast that cost alone. Review its measured runtime and usage
-   before launching the other seven episodes.
-4. **Eight episodes only.** Two strategies × prices 2/5 × development seeds 0/1.
-   Hold other settings fixed. Preserve every attempt in separate condition folders;
-   keep infrastructure errors, incomplete attempts, and gameplay losses distinct.
-5. **Evidence.** One compact table of completion, rereads, budget, tokens, and
-   runtime; two trace windows grounded in visible evidence. Describe the result
-   as preliminary. Two instances do not support strong statistical or causal claims.
+The real-Qwen 5070 Ti pilot passed the environment and trace-integrity gate:
+legal repeated inspections execute, charge budget, and remain in the raw trace.
+All eight prose/JSON × prices 2/5 × seeds 0/1 episodes ran with fixed model and
+actor settings, and all independent audits passed. Every run exhausted the
+budget without completing the meal. See [mvp-results.md](mvp-results.md) for
+the table and two trace annotations. Gameplay success was an outcome to measure,
+not a condition for running the comparison.
 
 Hybrid, the 120-episode study, dashboards, general scheduling/resume, and performance
 optimization are deferred unless an issue specifically blocks this MVP.

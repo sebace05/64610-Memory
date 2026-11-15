@@ -6,7 +6,8 @@ import json
 import pytest
 
 from game_memory.components import Generation, MemoryContext
-from game_memory.memory import HybridMemory, ProseMemory, StructuredMemory
+from game_memory.memory import (HybridMemory, ProseMemory, StructuredMemory,
+                                _public_prose_fallback, _validate_prose_facts)
 from game_memory.runner import _LoggedModel
 
 
@@ -15,6 +16,136 @@ CONTEXT = MemoryContext("Prepare the meal.", 80, 2, 256)
 ACTION = "[INITIAL_OBSERVATION]"
 OBSERVATION = "Recipe: dice and grill the cheese."
 NOTE = "Dice and grill cheese."
+
+
+def test_prose_writer_rejects_lost_inventory_and_unearned_progress():
+    previous = "Carried items: red apple\nRecipe progress: none complete"
+    with pytest.raises(ValueError, match="carried_items_disagree_with_action"):
+        _validate_prose_facts(previous, "Carried items: none\nRecipe progress: none complete",
+                              "examine fridge", "an open fridge")
+    with pytest.raises(ValueError, match="recipe_progress_disagrees_with_action"):
+        _validate_prose_facts(previous,
+                              "Carried items: red apple, chicken wing\nRecipe progress: red apple sliced",
+                              "take chicken wing", "You take the chicken wing.")
+    _validate_prose_facts(previous,
+                          "Carried items: red apple, chicken wing\nRecipe progress: none complete",
+                          "take chicken wing", "You take the chicken wing.")
+
+
+def test_prose_writer_keeps_earlier_completed_steps():
+    previous = "Carried items: red apple\nRecipe progress: slice red apple"
+    with pytest.raises(ValueError, match="recipe_progress_dropped"):
+        _validate_prose_facts(previous,
+                              "Carried items: red apple\nRecipe progress: roast red apple",
+                              "cook red apple in oven", "You roast the red apple with the oven.")
+
+
+def test_prose_writer_rejects_dropped_recipe():
+    previous = ("Ingredients: chicken wing, red apple\nDirections: grill chicken wing, "
+                "slice red apple\nCarried items: red apple\nRecipe progress: none complete")
+    with pytest.raises(ValueError, match="recipe_dropped"):
+        _validate_prose_facts(previous,
+                              "Carried items: red apple\nRecipe progress: none complete",
+                              "examine chicken wing", "a raw chicken wing")
+
+
+def test_public_fallback_retains_carried_item_and_new_inspection_result():
+    previous = ("Ingredients: chicken wing, red apple\nDirections: grill chicken wing\n"
+                "Carried items: red apple\nRecipe progress: none complete")
+    model = ScriptedModel((), counter=lambda text: len(text.split()))
+    fallback = _public_prose_fallback(previous, "examine chicken wing",
+                                      "a raw chicken wing", 256, model)
+    assert "Carried items: red apple" in fallback
+    assert "Latest observation: a raw chicken wing" in fallback
+    assert "Directions: grill chicken wing" in fallback
+    with pytest.raises(ValueError, match="new_observation_dropped"):
+        _validate_prose_facts(previous, previous, "examine chicken wing", "a raw chicken wing")
+
+
+def test_public_fallback_keeps_recipe_after_latest_evidence_lines():
+    previous = ("Carried items: chicken wing, red apple\n"
+                "Recipe progress: none complete\n"
+                "Latest action: examine cookbook\n"
+                "Latest observation: You find the recipe.\n"
+                "Ingredients: chicken wing, red apple\n"
+                "Directions: grill the chicken wing; slice the red apple")
+    model = ScriptedModel((), counter=lambda text: len(text.split()))
+    fallback = _public_prose_fallback(previous, "examine knife", "a knife", 256, model)
+    assert "Ingredients: chicken wing, red apple" in fallback
+    assert "Directions: grill the chicken wing" in fallback
+    assert "Latest action: examine knife" in fallback
+    assert "Latest action: examine cookbook" not in fallback
+
+
+def test_prepared_meal_replaces_recipe_ingredients_in_public_fallback():
+    previous = ("Ingredients:\n  chicken wing\n  red apple\nDirections:\n"
+                "  grill the chicken wing\n  slice the red apple\n  prepare meal\n"
+                "Carried items: chicken wing, knife, red apple\n"
+                "Recipe progress: cook chicken wing in toaster, slice red apple")
+    model = ScriptedModel((), counter=lambda text: len(text.split()))
+    observation = "Adding the meal to your inventory."
+    fallback = _public_prose_fallback(previous, "prepare meal", observation, 256, model)
+    assert "Carried items: knife, meal" in fallback
+    assert "Recipe progress: cook chicken wing in toaster, slice red apple, prepare meal" in fallback
+    assert "Meal prepared and carried; all listed preparation directions are complete." in fallback
+    _validate_prose_facts(previous, fallback, "prepare meal", observation)
+
+
+def test_structured_writer_rejects_stale_prepared_meal_and_retains_public_result():
+    previous = json.dumps({
+        "carried_items": ["chicken wing", "knife", "salt"],
+        "recipe_status": {"ingredients": {"chicken wing": True, "salt": True},
+                          "directions": {"grill the chicken wing": True,
+                                         "prepare meal": False}},
+    }, separators=(",", ":"), sort_keys=True)
+    model = ScriptedModel((previous, previous))
+    result = StructuredMemory().update(previous, "prepare meal",
+                                       "Adding the meal to your inventory.", CONTEXT, model)
+    state = json.loads(result.memory)
+    assert state["carried_items"] == ["knife", "meal"]
+    assert state["meal_prepared"] is True
+    assert "recipe_status" not in state
+    assert result.events == (
+        "memory_rejected:structured_meal_inventory_stale",
+        "memory_repair_rejected:structured_meal_inventory_stale",
+        "memory_fallback:public_evidence",
+    )
+
+
+def test_structured_writer_accepts_confirmed_meal_update():
+    previous = json.dumps({"carried_items": ["salt"],
+                           "recipe_status": {"ingredients": {"salt": True},
+                                             "directions": {"prepare meal": False}}})
+    candidate = json.dumps({"carried_items": ["meal"],
+                            "recipe_status": {"ingredients": {"salt": True},
+                                              "directions": {"prepare meal": True}}})
+    model = ScriptedModel((candidate,))
+    result = StructuredMemory().update(previous, "prepare meal",
+                                       "Adding the meal to your inventory.", CONTEXT, model)
+    assert json.loads(result.memory)["carried_items"] == ["meal"]
+    assert "memory_accepted" in result.events
+
+
+def test_structured_public_meal_fallback_handles_writer_chosen_inventory_key():
+    previous = json.dumps({"inventory": ["chicken wing", "salt"],
+                           "recipe_progress": {"ingredients": {"chicken wing": True,
+                                                               "salt": True},
+                                               "directions": {"prepare meal": False}}})
+    model = ScriptedModel((previous, previous))
+    result = StructuredMemory().update(previous, "prepare meal",
+                                       "Adding the meal to your inventory.", CONTEXT, model)
+    assert json.loads(result.memory) == {"inventory": ["meal"], "meal_prepared": True}
+    assert result.events[-1] == "memory_fallback:public_evidence"
+
+
+def test_initial_prose_fallback_retains_public_recipe_after_failed_repair():
+    observation = "Kitchen.\nIngredients: red apple\nDirections: roast red apple"
+    missing = "Carried items: none\nRecipe progress: none complete"
+    model = ScriptedModel((missing, missing), counter=lambda text: len(text.split()))
+    update = ProseMemory().update("", "[INITIAL_OBSERVATION]", observation, CONTEXT, model)
+    assert "Ingredients: red apple\nDirections: roast red apple" in update.memory
+    assert "Carried items: none" in update.memory
+    assert update.events[-1] == "memory_fallback:initial_public_observation"
 
 
 class ScriptedModel:
