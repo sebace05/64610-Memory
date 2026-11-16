@@ -177,3 +177,42 @@ retaining its independent accounting checks. It rejects mixed configurations;
 summarize v1/v2 pilots separately before comparing matched results. Capability
 and scientific interpretation remain separate from logging/infrastructure pass
 flags.
+
+## V30: recovery-aware memory calibration policy
+
+Select `PromptedActor(prompt_version="v30")` or `--actor-prompt v30` explicitly.
+The historical API/CLI default remains v1 and all older policies remain intact.
+Identity is `s2-action-v30` for bounded memory and `full-history-v30` for the
+explicit diagnostic context.
+
+V30 extends v29's generic ordered-prerequisite gameplay instructions. It reads
+facts from supplied context without requiring prose headings or JSON keys. It
+does not assume the recipe remains in memory: missing or uncertain information
+may justify a legal cookbook reread or another information action, accounting
+for the public budget and reread price. Known information does not force a
+reread. Shared mechanics cover appliances, tools, carried ingredients, preparing,
+and eating the meal. The substantive policy is identical across formats and
+full-history diagnostics; the latter changes the context label.
+
+V29's model-based meal review and unavailable-action repair remain unchanged
+apart from v30 context labels, so their identifiers remain
+`qwen_format_neutral_prepare_review_v1` and
+`qwen_format_neutral_unavailable_review_v1`. Calls use the supplied model with
+purposes `action`, `action_review`, and `action_repair`. At most one repair is
+allowed; a preparation proposal on either attempt can also trigger review.
+Each review uses the current turn's supplied evidence, including the unavailable
+proposal when reviewing a repaired proposal. No programmed useful action is
+substituted. Optional-article matching retains
+`optional_article_exact_match_v1`; final choices must match allowed actions.
+Model errors propagate for the runner to preserve.
+
+V30 bypasses both reading and maintenance of the old inspection-result cache
+and does not retain a previous action. Legal repeats remain available, including
+cookbook rereads. Repair exchanges and proposals exist only within the current
+call; subsequent decisions receive only their new public view and supplied
+memory/history. History is diagnostic-only and is never added to bounded input.
+
+CPU fake-model tests cover these boundaries and inference-purpose wiring. They
+do not establish Qwen instruction adherence, useful recovery, or game success.
+Those require separately authorized calibration; no real inference was run for
+this implementation.

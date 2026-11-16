@@ -25,19 +25,25 @@ def runtime_environment(base=None) -> dict:
     return environment
 
 
-def prepare_pilot(directory: Path, episode, actor, model, backend: str, seeds: list[int]) -> dict:
+def prepare_pilot(directory: Path, episode, actor, model, backend: str, seeds: list[int], *,
+                  memory_metadata: dict, protocol_id: str) -> dict:
     """Create an immutable manifest and reject mixed, duplicate, or partial runs.
 
     This supports one sequential worker. Batch scheduling/resume is separate.
     """
+    if not isinstance(protocol_id, str) or not protocol_id.strip():
+        raise ValueError("protocol_id must be nonempty")
+    if not isinstance(memory_metadata, dict) or not memory_metadata:
+        raise ValueError("memory_metadata must be a nonempty dictionary")
     episode_settings = asdict(episode)
     episode_settings.pop("seed")
     runtime = None
     if model is not None:
         from .transformers_model import runtime_metadata
         runtime = runtime_metadata(model)
-    manifest = {"schema_version": 1, "source": source_metadata(), "backend": backend,
+    manifest = {"schema_version": 2, "source": source_metadata(), "backend": backend,
                 "episode": episode_settings, "actor": actor.metadata,
+                "memory": memory_metadata, "protocol_id": protocol_id,
                 "model": asdict(model) if model is not None else None, "runtime": runtime}
     directory = Path(directory)
     path = directory / "pilot-manifest.json"
@@ -60,7 +66,9 @@ def prepare_pilot(directory: Path, episode, actor, model, backend: str, seeds: l
         result = json.loads(result_path.read_text())
         settings = {k: v for k, v in result["config"].items() if k != "seed"}
         if (settings != manifest["episode"] or result["components"]["actor"] != manifest["actor"]
-                or result.get("source") != manifest["source"]):
+                or result.get("source") != manifest["source"]
+                or result["components"].get("memory") != manifest["memory"]
+                or result.get("protocol_id") != manifest["protocol_id"]):
             raise ValueError("Existing episode settings disagree with the manifest; use a new pilot directory")
         if model is not None and any(result["components"]["model"].get(k) != v
                                      for k, v in (manifest["model"] | manifest["runtime"]).items()):

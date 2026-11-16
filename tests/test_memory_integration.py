@@ -150,3 +150,52 @@ def test_unrepresentable_number_is_logged_as_memory_rejection(
         "memory_rejected:json_number_unrepresentable", "memory_repair_accepted"]
     assert update["memory"] == memory.render(candidate)
     assert result["usage_by_purpose"]["memory_repair"]["calls"] == 1
+
+
+@pytest.mark.parametrize("memory", [ProseMemory(), StructuredMemory()])
+@pytest.mark.parametrize("failed", [False, True])
+def test_initial_empty_or_failed_writer_remains_empty_with_all_attempts_logged(
+    tmp_path, memory, failed,
+):
+    class EmptyOrRejectedWriter(FakeModel):
+        def count_tokens(self, text):
+            return len(text)
+
+        def generate(self, messages, *, purpose):
+            if purpose in {"memory", "memory_repair"}:
+                text = "x" * 257 if failed else memory.empty()
+                return Generation(text, sum(len(m.content) for m in messages), len(text),
+                                  0.01, {"finish_reason": "length" if failed else "stop"})
+            return super().generate(messages, purpose=purpose)
+
+    config = EpisodeConfig(strategy=memory.strategy, action_budget=1)
+    model = EmptyOrRejectedWriter(actions=("examine cookbook",))
+    with CookingWorldEnvironment(action_budget=1) as environment:
+        result = run_episode(config, environment, PromptedActor(), memory, model,
+                             output_dir=tmp_path)
+    events = [json.loads(line) for line in (
+        tmp_path / result["episode_id"] / "events.jsonl").read_text().splitlines()]
+    assert result["status"] == "completed"
+    updates = [e for e in events if e["event"] == "memory_update"]
+    assert len(updates) == 1  # Initialization only: no write after terminal action.
+    assert updates[0]["memory"] == memory.render(memory.empty())
+    assert updates[0]["validation_events"][-1] == (
+        "memory_fallback:previous_valid_memory" if failed else "memory_accepted")
+    requests = [e for e in events if e["event"] == "model_request"]
+    actor = next(e for e in requests if e["purpose"] == "action")
+    assert actor["messages"][1]["content"].endswith(
+        "\nBounded memory:\n" + memory.render(memory.empty()))
+    responses = [e for e in events if e["event"] == "model_response"]
+    assert result["input_tokens"] == sum(e["input_tokens"] for e in responses)
+    assert result["output_tokens"] == sum(e["output_tokens"] for e in responses)
+    assert result["usage_complete"]
+    assert result["usage_by_purpose"]["memory"]["calls"] == 1
+    if failed:
+        assert result["usage_by_purpose"]["memory_repair"]["calls"] == 1
+        writer_responses = [e for e in responses
+                            if e["purpose"] in {"memory", "memory_repair"}]
+        assert len(writer_responses) == 2
+        assert all(e["output_tokens"] == 257 for e in writer_responses)
+        assert all(e["metadata"]["finish_reason"] == "length" for e in writer_responses)
+    else:
+        assert "memory_repair" not in result["usage_by_purpose"]

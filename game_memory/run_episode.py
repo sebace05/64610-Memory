@@ -41,6 +41,7 @@ def main(argv=None, *, model=None) -> int:
     parser.add_argument("--memory-max-new-tokens", type=int, default=512)
     parser.add_argument("--generation-seed", type=int, default=0)
     parser.add_argument("--local-files-only", action="store_true")
+    parser.add_argument("--protocol-id", help="Immutable study identity; defaults to a generic backend/diagnostic identity")
     parser.add_argument("--pilot", action="store_true", help="Enforce an immutable pilot manifest and attempt guards")
     parser.add_argument("--prepare-only", action="store_true", help="Validate and record the pilot without loading weights")
     if model is not None:
@@ -87,13 +88,30 @@ def main(argv=None, *, model=None) -> int:
                       "artifacts/s2-fixtures")
     output_dir = args.output_dir or Path(default_output)
     actor = PromptedActor(full_history=args.strategy == "full_history", prompt_version=args.actor_prompt)
+    protocol_id = args.protocol_id if args.protocol_id is not None else (
+        "generic-fixture-v1" if args.backend == "fake" else
+        "generic-full-history-v1" if args.strategy == "full_history" else "generic-bounded-v1")
+    if not protocol_id.strip():
+        parser.error("protocol_id must be nonempty")
+
+    def selected_memory():
+        if args.strategy == "full_history":
+            return FullHistoryMemory()
+        if args.backend == "fake":
+            return FakeMemory(args.strategy)
+        from .memory import HybridMemory, ProseMemory, StructuredMemory
+        return {"prose": ProseMemory, "structured": StructuredMemory,
+                "hybrid": HybridMemory}[args.strategy]()
+
+    memory_metadata = selected_memory().metadata
     if args.pilot:
         from .pilot import prepare_pilot, runtime_environment
         os.environ.update(runtime_environment())
         try:
             manifest = prepare_pilot(output_dir, configs[0], actor,
                                      model_config if args.backend == "transformers" else None,
-                                     args.backend, selected_seeds)
+                                     args.backend, selected_seeds,
+                                     memory_metadata=memory_metadata, protocol_id=protocol_id)
         except (ValueError, KeyError, TypeError) as error:
             parser.error(str(error))
         if args.prepare_only:
@@ -106,21 +124,13 @@ def main(argv=None, *, model=None) -> int:
     elif args.backend == "fake":
         model = None  # Create a fresh script for each fixture episode.
     for config in configs:
-        full_history = config.strategy == "full_history"
-        if full_history:
-            memory = FullHistoryMemory()
-        elif model is None:
-            memory = FakeMemory(config.strategy)
-        else:
-            from .memory import HybridMemory, ProseMemory, StructuredMemory
-            memory = {"prose": ProseMemory, "structured": StructuredMemory,
-                      "hybrid": HybridMemory}[config.strategy]()
+        memory = selected_memory()
         with CookingWorldEnvironment(recheck_cost=config.recheck_cost,
                                       action_budget=config.action_budget) as environment:
             result = run_episode(config, environment,
                                  actor,
                                  memory, model if model is not None else FakeModel(),
-                                 output_dir=output_dir)
+                                 output_dir=output_dir, protocol_id=protocol_id)
         print(f"{result['kind']}: seed={config.seed}; status={result['status']}; "
               f"termination={result['termination_reason']}; steps={result['steps']}; "
               f"budget_spent={result['budget_spent']}; recipe_rechecks={result['recipe_rechecks']}")

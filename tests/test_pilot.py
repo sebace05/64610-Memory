@@ -18,13 +18,15 @@ def settings(tmp_path, monkeypatch):
     monkeypatch.setattr("game_memory.pilot.source_metadata", lambda: {"commit": "a" * 40, "worktree_dirty": False})
     return dict(directory=tmp_path, episode=EpisodeConfig(strategy="full_history", action_budget=2),
                 actor=PromptedActor(full_history=True, prompt_version="v2"),
-                model=None, backend="fake", seeds=[0])
+                model=None, backend="fake", seeds=[0],
+                memory_metadata={"name": "full_history", "version": 1}, protocol_id="fixture-v1")
 
 
 def record_episode(settings, manifest, *, trace=True):
     directory = settings["directory"] / "episode"
     directory.mkdir()
-    result = {"config": asdict(settings["episode"]), "components": {"actor": manifest["actor"]},
+    result = {"config": asdict(settings["episode"]), "components": {"actor": manifest["actor"], "memory": manifest["memory"]},
+              "protocol_id": manifest["protocol_id"],
               "source": manifest["source"]}
     if settings["model"] is not None:
         result["components"]["model"] = manifest["model"] | manifest["runtime"]
@@ -190,3 +192,79 @@ def test_pilot_cli_preserves_failure_status(tmp_path, monkeypatch, child_status,
     monkeypatch.setattr("game_memory.pilot.run_logged", fail)
     monkeypatch.setattr("sys.argv", ["pilot", "--output-dir", str(tmp_path)])
     assert main() == expected
+
+
+@pytest.mark.parametrize("change", ["memory", "protocol", "allowance", "source"])
+def test_new_identity_changes_preserve_existing_manifest(settings, monkeypatch, change):
+    prepare_pilot(**settings)
+    path = settings["directory"] / "pilot-manifest.json"
+    original = path.read_bytes()
+    updated = settings | {"seeds": [1]}
+    if change == "memory":
+        updated["memory_metadata"] = {"name": "full_history", "version": 2}
+    elif change == "protocol":
+        updated["protocol_id"] = "different-v1"
+    elif change == "allowance":
+        updated["episode"] = replace(settings["episode"], memory_token_limit=64)
+    else:
+        monkeypatch.setattr("game_memory.pilot.source_metadata", lambda: {
+            "commit": "a" * 40, "worktree_dirty": False, "source_digest": "changed"})
+    with pytest.raises(ValueError, match="Pilot settings changed"):
+        prepare_pilot(**updated)
+    assert path.read_bytes() == original
+
+
+@pytest.mark.parametrize("field", ["memory", "protocol_id", "source"])
+def test_result_identity_mismatch_blocks_new_seed(settings, field):
+    manifest = prepare_pilot(**settings)
+    record_episode(settings, manifest)
+    path = settings["directory"] / "episode/result.json"
+    result = json.loads(path.read_text())
+    if field == "memory":
+        result["components"][field] = {"wrong": True}
+    else:
+        result[field] = "wrong"
+    path.write_text(json.dumps(result))
+    with pytest.raises(ValueError, match="Existing episode settings"):
+        prepare_pilot(**(settings | {"seeds": [1]}))
+
+
+@pytest.mark.parametrize("protocol", ["", "  ", None])
+def test_empty_protocol_rejected_without_artifacts(settings, protocol):
+    with pytest.raises(ValueError, match="protocol_id"):
+        prepare_pilot(**(settings | {"protocol_id": protocol}))
+    assert not (settings["directory"] / "pilot-manifest.json").exists()
+
+
+def test_real_prepare_records_memory_without_constructing_model(tmp_path, monkeypatch):
+    from game_memory.memory import StructuredMemory
+    from game_memory.run_episode import main
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("prepare-only allocated model weights")
+
+    monkeypatch.setattr("game_memory.transformers_model.TransformersModel", forbidden)
+    monkeypatch.setattr("game_memory.transformers_model.runtime_metadata", lambda config: {"gpu": None})
+    assert main(["--pilot", "--prepare-only", "--backend", "transformers",
+                 "--strategy", "structured", "--actor-prompt", "v30", "--model-revision", "b" * 40,
+                 "--protocol-id", "synthetic-preflight-v1", "--output-dir", str(tmp_path)]) == 0
+    manifest = json.loads((tmp_path / "pilot-manifest.json").read_text())
+    assert manifest["schema_version"] == 2
+    assert manifest["memory"] == StructuredMemory().metadata
+    assert manifest["actor"]["prompt_version"] == "s2-action-v30"
+    assert manifest["protocol_id"] == "synthetic-preflight-v1"
+    assert len(manifest["source"]["source_digest"]) == 64
+    assert not list(tmp_path.glob("*/events.jsonl"))
+
+
+def test_existing_result_model_identity_is_independently_checked(settings, monkeypatch):
+    from game_memory.transformers_model import TransformersConfig
+    monkeypatch.setattr("game_memory.transformers_model.runtime_metadata", lambda config: {"gpu": "fixture"})
+    settings = settings | {"model": TransformersConfig(revision="b" * 40), "backend": "transformers"}
+    record_episode(settings, prepare_pilot(**settings))
+    path = settings["directory"] / "episode/result.json"
+    result = json.loads(path.read_text())
+    result["components"]["model"]["revision"] = "c" * 40
+    path.write_text(json.dumps(result))
+    with pytest.raises(ValueError, match="Existing model settings"):
+        prepare_pilot(**(settings | {"seeds": [1]}))

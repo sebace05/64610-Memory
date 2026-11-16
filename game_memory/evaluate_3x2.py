@@ -1,7 +1,6 @@
 """Run the frozen 120-episode held-out grid with one loaded Qwen model."""
 
 import argparse
-from hashlib import sha256
 import json
 from pathlib import Path
 
@@ -10,25 +9,13 @@ from .contracts import CookingWorldConfig
 from .environment import CookingWorldEnvironment
 from .memory import HybridMemory, ProseMemory, StructuredMemory, PROMPT_VERSION
 from .pilot import prepare_pilot, runtime_environment
-from .runner import EpisodeConfig, run_episode
+from .runner import EpisodeConfig, run_episode, source_digest
 from .summarize_diagnostics import summarize
 from .transformers_model import TransformersConfig, TransformersModel
 
 
 MEMORIES = {"prose": ProseMemory, "structured": StructuredMemory,
             "hybrid": HybridMemory}
-
-
-def source_digest(repo: Path) -> str:
-    """Fingerprint the executable Python and dependency/protocol files."""
-    paths = sorted((*((repo / "game_memory").glob("*.py")),
-                    repo / "requirements.txt", repo / "requirements-model.txt",
-                    repo / "AGENTS.md", repo / "docs" / "experiment-3x2-protocol.md"))
-    digest = sha256()
-    for path in paths:
-        digest.update(str(path.relative_to(repo)).encode() + b"\0")
-        digest.update(path.read_bytes() + b"\0")
-    return digest.hexdigest()
 
 
 def completed_seeds(directory: Path) -> set[int]:
@@ -82,7 +69,9 @@ def run(root: Path) -> None:
         config = EpisodeConfig(seed=seeds[0], strategy=strategy, recheck_cost=price,
                                action_budget=protocol["action_budget"],
                                memory_token_limit=protocol["memory_token_limit"], game=game)
-        prepare_pilot(directory, config, actor, model_config, "transformers", remaining)
+        prepare_pilot(directory, config, actor, model_config, "transformers", remaining,
+                      memory_metadata=MEMORIES[strategy]().metadata,
+                      protocol_id="deferred-3x2-v1")
         done[(strategy, price)] = seen
 
     if all(len(seen) == len(seeds) for seen in done.values()):
@@ -101,7 +90,8 @@ def run(root: Path) -> None:
                                              action_budget=config.action_budget) as environment:
                     result = run_episode(config, environment,
                                          PromptedActor(prompt_version=protocol["actor_prompt"]),
-                                         MEMORIES[strategy](), model, output_dir=directory)
+                                         MEMORIES[strategy](), model, output_dir=directory,
+                                         protocol_id="deferred-3x2-v1")
                 print(f"seed={seed} {strategy} price={price} status={result['status']} "
                       f"termination={result['termination_reason']} steps={result['steps']} "
                       f"spent={result['budget_spent']}", flush=True)

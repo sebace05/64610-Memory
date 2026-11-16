@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "purpose": "Offline diagnostic examples from preserved v16 public traces; never agent inputs or v17 comparison data.",
+  "recipes": [
+    {
+      "seed": 0,
+      "trace": "artifacts/reproduction-v29-v16-20261115/structured-p2/8b2b96c499f74115b86549c3be31d28d/events.jsonl",
+      "facts": [
+        {"id": "recipe-chicken", "statement": "Chicken wing must be grilled.", "evidence": [{"sequence": 1, "quote": "grill the chicken wing"}]},
+        {"id": "recipe-apple", "statement": "Red apple must be sliced and roasted.", "evidence": [{"sequence": 1, "quote": "slice the red apple\n  roast the red apple"}]},
+        {"id": "recipe-meal", "statement": "Prepare meal after ingredient preparation.", "evidence": [{"sequence": 1, "quote": "prepare meal"}]},
+        {"id": "carried-apple", "statement": "The agent took the red apple.", "evidence": [{"sequence": 33, "quote": "You take the red apple."}]},
+        {"id": "apple-roasted", "statement": "The apple was roasted.", "evidence": [{"sequence": 45, "quote": "You roast the red apple with the oven."}]},
+        {"id": "chicken-grilled", "statement": "The chicken wing was grilled.", "evidence": [{"sequence": 77, "quote": "You grill the chicken wing with the toaster."}]},
+        {"id": "fridge-open", "statement": "The fridge was opened.", "evidence": [{"sequence": 59, "quote": "You open the fridge."}]}
+      ],
+      "checkpoints": [
+        {"name": "reset", "memory_sequence": 4, "required": ["recipe-chicken", "recipe-apple", "recipe-meal"], "assessments": {"recipe-chicken": "supported", "recipe-apple": "supported", "recipe-meal": "supported"}, "claims": []},
+        {"name": "after-taking", "memory_sequence": 36, "required": ["recipe-chicken", "recipe-apple", "recipe-meal", "carried-apple"], "assessments": {"recipe-chicken": "supported", "recipe-apple": "supported", "recipe-meal": "supported", "carried-apple": "supported"}, "claims": [{"text": "inventory is empty while carried_items includes red apple", "classification": "contradiction", "evidence_sequences": [33, 36]}]},
+        {"name": "after-preparing", "memory_sequence": 48, "required": ["recipe-chicken", "recipe-apple", "recipe-meal", "carried-apple", "apple-roasted"], "assessments": {"recipe-chicken": "supported", "recipe-apple": "supported", "recipe-meal": "supported", "carried-apple": "supported", "apple-roasted": "supported"}, "claims": [{"text": "prepare meal is true without an executed prepare meal", "classification": "invented", "evidence_sequences": [1, 7, 15, 21, 27, 33, 39, 45, 48]}]},
+        {"name": "before-terminal-mistake", "memory_sequence": 80, "next_action_sequence": 83, "required": ["recipe-chicken", "recipe-apple", "recipe-meal", "apple-roasted", "chicken-grilled", "fridge-open"], "assessments": {"recipe-chicken": "supported", "recipe-apple": "supported", "recipe-meal": "supported", "apple-roasted": "supported", "chicken-grilled": "supported", "fridge-open": "contradiction"}, "claims": [{"text": "fridge remains closed", "classification": "contradiction", "evidence_sequences": [59, 80]}, {"text": "prepare meal already completed", "classification": "invented", "evidence_sequences": [48, 53, 59, 65, 71, 77, 80]}]}
+      ]
+    },
+    {
+      "seed": 1,
+      "trace": "artifacts/reproduction-v29-v16-20261115/structured-p2/79dbcd15702840e4b42e0f4e15dccafa/events.jsonl",
+      "facts": [
+        {"id": "recipe-chicken", "statement": "Chicken wing must be grilled.", "evidence": [{"sequence": 1, "quote": "grill the chicken wing"}]},
+        {"id": "recipe-salt", "statement": "Salt is a required ingredient.", "evidence": [{"sequence": 1, "quote": "Ingredients:\n  chicken wing\n  salt"}]},
+        {"id": "recipe-meal", "statement": "Prepare meal after ingredient preparation.", "evidence": [{"sequence": 1, "quote": "prepare meal"}]},
+        {"id": "carried-chicken", "statement": "The agent took the chicken wing.", "evidence": [{"sequence": 13, "quote": "You take the chicken wing."}]},
+        {"id": "carried-salt", "statement": "The agent took salt.", "evidence": [{"sequence": 25, "quote": "You take the salt."}]}
+      ],
+      "checkpoints": [
+        {"name": "reset", "memory_sequence": 4, "required": ["recipe-chicken", "recipe-salt", "recipe-meal"], "assessments": {"recipe-chicken": "supported", "recipe-salt": "supported", "recipe-meal": "supported"}, "claims": []},
+        {"name": "after-taking", "memory_sequence": 16, "required": ["recipe-chicken", "recipe-salt", "recipe-meal", "carried-chicken"], "assessments": {"recipe-chicken": "supported", "recipe-salt": "supported", "recipe-meal": "supported", "carried-chicken": "supported"}, "claims": [{"text": "ingredient true means collected rather than seen", "classification": "unknown", "evidence_sequences": [10, 13, 16]}]},
+        {"name": "before-terminal-mistake", "memory_sequence": 28, "next_action_sequence": 31, "required": ["recipe-chicken", "recipe-salt", "recipe-meal", "carried-chicken", "carried-salt"], "assessments": {"recipe-chicken": "supported", "recipe-salt": "supported", "recipe-meal": "supported", "carried-chicken": "supported", "carried-salt": "supported"}, "claims": []}
+      ],
+      "unreached_checkpoints": [{"name": "after-preparing", "reason": "First cooking action is a terminal mistake; no subsequent memory update exists.", "evidence_sequences": [31]}]
+    }
+  ],
+  "assessment_examples": [
+    {"name": "empty", "required": ["recipe-chicken", "recipe-salt"], "assessments": {"recipe-chicken": "omission", "recipe-salt": "omission"}, "claims": []},
+    {"name": "correct", "required": ["recipe-chicken"], "assessments": {"recipe-chicken": "supported"}, "claims": [{"text": "grill chicken wing", "classification": "supported", "evidence_sequences": [1]}]},
+    {"name": "contradictory", "required": ["recipe-chicken"], "assessments": {"recipe-chicken": "contradiction"}, "claims": [{"text": "recipe requires frying chicken", "classification": "contradiction", "evidence_sequences": [1]}]},
+    {"name": "ambiguous", "required": ["recipe-chicken"], "assessments": {"recipe-chicken": "unknown"}, "claims": [{"text": "chicken done", "classification": "unknown", "evidence_sequences": [1]}]}
+  ]
+}

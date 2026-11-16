@@ -1,0 +1,43 @@
+# Evidence for the Modal handoff
+
+Clone branch `codex/modal-calibration-handoff` for the current implementation
+and instructions. Start with `docs/modal-laptop-setup.md`, then provide
+`docs/codex-modal-handoff-prompt.md` to the laptop Codex agent.
+
+`codex-modal-handoff-20261116.zip` is the original, verified pre-commit transfer
+snapshot (about 2.7 MB). Its SHA-256 is in the adjacent `.zip.sha256` file.
+It contains the actual formerly uncommitted source and the Git-ignored raw
+calibration evidence, reports, earlier evidence ZIPs and historical test fixtures.
+It contains no environments, model weights, Git internals or credentials.
+
+The old `739e72d` commit and dirty status inside the archive are historical
+provenance. The current branch's committed source/docs are authoritative;
+do not overlay the archived source/docs onto them or reset to that old commit.
+The experimental Python source remains at frozen Linux digest
+`f4c9b85a1594d02e3b2ac6ae225a4e82b9b0566ab6b545cc93d055d5cd860afb`.
+Committing naturally changes Git SHA/dirty metadata without changing that digest.
+
+Before editing or running experiments, the receiving agent should:
+
+1. Check the archive against its adjacent SHA-256 and run ZIP CRC validation.
+2. Read `handoff/transfer-manifest.json` **inside the ZIP** and verify its
+   per-file hashes against the archived bytes. These hashes describe the
+   archived snapshot, not the branch's subsequently updated setup docs.
+3. Restore only entries under `artifacts/` into the checkout, using the Python
+   standard library. Validate the full selection before writing: skip identical
+   existing files and stop on any conflicting content; never overwrite results.
+   Reject absolute or parent-traversal paths. No additional extraction framework
+   is necessary for this one-off restoration.
+4. Confirm that the latest summary and historical fixtures exist at:
+   `artifacts/qwen-calibration-v17-v30-20261116T154805Z/calibration-summary-after-retry-2.json`
+   and `artifacts/reproduction-v29-v16-20261115/`.
+
+Raw artifacts remain ignored by Git after extraction. Five local episodes
+completed; JSON seed 1 never started because two separate model loads were OOM
+killed. Both failed attempts and the original interrupted prose trace are
+preserved. The source, outcomes, annotations and host-disk diagnosis are also
+described in the committed `docs/memory-calibration-*.md` reports.
+
+There is no implemented Modal launcher or deployment yet. The handoff prompt
+asks the receiving agent to implement and validate the launcher, then run one
+separately labeled cloud pilot with explicit authorization and fixed settings.

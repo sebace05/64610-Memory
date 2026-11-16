@@ -9,6 +9,89 @@ from pathlib import Path
 from .actor import validate_action_output
 from .inspect_episode import analyze_events
 
+def memory_metrics(events: list[dict], strategy: str, limit: int | None) -> dict:
+    """Offline provenance only; absent or ambiguous legacy evidence stays unknown."""
+    updates = [e for e in events if e["event"] == "memory_update"]
+    counts = Counter()
+    rows = []
+    for update in updates:
+        labels = update.get("validation_events", [])
+        outcomes = [label for label in labels if label in {
+            "memory_accepted", "memory_repair_accepted", "memory_fallback:previous_valid_memory"}]
+        outcome = outcomes[0] if len(outcomes) == 1 else "unknown"
+        counts[outcome] += 1
+        empty = None
+        if outcome in {"memory_accepted", "memory_repair_accepted"}:
+            if strategy == "prose":
+                empty = update["memory"] == ""
+            elif strategy == "structured":
+                try:
+                    empty = json.loads(update["memory"]) == {}
+                except ValueError:
+                    pass
+        if empty is True:
+            counts["accepted_empty"] += 1
+        if empty is None:
+            counts["empty_unknown"] += 1
+        rows.append({"sequence": update.get("sequence"), "outcome": outcome,
+                     "accepted_empty": empty, "stored_tokens": update.get("memory_tokens"),
+                     "utilization": update.get("memory_tokens", 0) / limit if limit else None})
+    rejections = [label.split(":", 1)[1] for u in updates
+                  for label in u.get("validation_events", [])
+                  if label.startswith(("memory_rejected:", "memory_repair_rejected:"))]
+    candidates = []
+    for e in events:
+        if e["event"] != "model_response" or e["purpose"] not in {"memory", "memory_repair"}:
+            continue
+        # Only explicit size-rejection evidence gives a rejected candidate's rendered size.
+        following = next((u for u in updates if u.get("sequence", -1) > e.get("sequence", -1)
+                          and u.get("step") == e.get("step")), {})
+        prefix = "memory_repair_rejected:" if e["purpose"] == "memory_repair" else "memory_rejected:"
+        reason = next((v[len(prefix):] for v in following.get("validation_events", [])
+                       if v.startswith(prefix)), None)
+        rendered = None
+        if reason and reason.startswith("over_budget:"):
+            try:
+                rendered = int(reason.split(":")[1].split(">")[0])
+            except ValueError:
+                pass
+        accepted = "memory_repair_accepted" if e["purpose"] == "memory_repair" else "memory_accepted"
+        if accepted in following.get("validation_events", []):
+            rendered = following.get("memory_tokens")
+        candidates.append({"sequence": e.get("sequence"), "purpose": e["purpose"],
+                           "raw_output_tokens": e.get("output_tokens"),
+                           "rendered_tokens": rendered, "rejection": reason})
+    format_checks = []
+    for update in updates:
+        adherence = None
+        if strategy == "structured":
+            try:
+                adherence = isinstance(json.loads(update["memory"]), dict)
+            except ValueError:
+                adherence = False
+        elif strategy == "prose":
+            # A narrow offline flag, not a complete natural-language classifier.
+            try:
+                adherence = not isinstance(json.loads(update["memory"]), (dict, list))
+            except ValueError:
+                pass
+        format_checks.append({"sequence": update.get("sequence"),
+                              "format_adherence": adherence})
+    syntax_reasons = {"memory_must_be_text", "invalid_unicode", "duplicate_json_key",
+                      "nonfinite_json_number", "json_number_unrepresentable", "json_number_changed",
+                      "malformed_json", "json_object_required", "invalid_hybrid_shape"}
+    return {"memory_updates": len(updates), "primary_accepted": counts["memory_accepted"],
+            "repaired_accepted": counts["memory_repair_accepted"],
+            "previous_state_fallback": counts["memory_fallback:previous_valid_memory"],
+            "outcome_unknown": counts["unknown"], "accepted_empty": counts["accepted_empty"],
+            "empty_unknown": counts["empty_unknown"],
+            "over_budget_rejections": sum(r.startswith("over_budget:") for r in rejections),
+            "syntax_rejections": sum(r in syntax_reasons for r in rejections),
+            "rejection_reasons": dict(Counter(rejections)),
+            "unclassified_rejections": sum(r not in syntax_reasons and not r.startswith("over_budget:") for r in rejections), "updates": rows,
+            "candidates": candidates, "format_checks": format_checks, "token_count_method": "recorded_trace_no_recount"}
+
+
 def summarize(root: Path, *, include_fixtures: bool = False) -> dict:
     directories = sorted({p.parent for pattern in ("events.jsonl", "result.json")
                           for p in root.rglob(pattern)})
@@ -45,6 +128,7 @@ def summarize(root: Path, *, include_fixtures: bool = False) -> dict:
             require([e["sequence"] for e in events] == list(range(len(events))), "broken event sequence")
             require(events[0]["config"] == result["config"] and
                     events[0]["components"] == result["components"], "header disagrees with result")
+            require(events[0].get("protocol_id") == result.get("protocol_id"), "protocol identity disagrees with trace")
             require(events[0].get("source") == result.get("source"), "source identity disagrees with trace")
             require(events[0].get("memory_token_limit_applies") is (strategy != "full_history"),
                     "memory token-limit policy is not explicit")
@@ -79,6 +163,9 @@ def summarize(root: Path, *, include_fixtures: bool = False) -> dict:
             require(request is None, "unfinished model request")
             require(result["usage_complete"] == (model_errors == 0), "incorrect usage completeness")
             updates = [e for e in events if e["event"] == "memory_update"]
+            if result["components"]["memory"].get("prompt_version") == "p1-memory-v17":
+                require(memory_metrics(events, strategy, result["config"].get("memory_token_limit"))["outcome_unknown"] == 0,
+                        "v17 memory updates require exactly one final acceptance/fallback outcome")
             memory_replies = [e for e in replies if e["purpose"].startswith("memory")]
             latest_memory_by_request = {}
             latest_memory = None
@@ -167,6 +254,22 @@ def summarize(root: Path, *, include_fixtures: bool = False) -> dict:
                 "status": result["status"], "success": result["success"],
                 "termination_reason": result["termination_reason"], "error": result["error"],
                 "steps": result["steps"], "budget_spent": result["budget_spent"],
+                "score": result.get("score"), "usage_complete": result["usage_complete"],
+                "usage_by_purpose": result["usage_by_purpose"],
+                "generation_by_purpose": {
+                    purpose: {"calls": sum(e["event"] == "model_request" and e.get("purpose") == purpose for e in events),
+                              "returned_calls": sum(e["purpose"] == purpose for e in replies),
+                              "failed_calls": sum(e["event"] == "model_error" and e.get("purpose") == purpose for e in events),
+                              "input_tokens": sum(e["input_tokens"] for e in replies if e["purpose"] == purpose),
+                              "output_tokens": sum(e["output_tokens"] for e in replies if e["purpose"] == purpose),
+                              "elapsed_seconds": sum(e["elapsed_seconds"] for e in replies if e["purpose"] == purpose),
+                              "limit_hits": sum(e.get("metadata", {}).get("finish_reason") == "length"
+                                                for e in replies if e["purpose"] == purpose)}
+                    for purpose in sorted({e["purpose"] for e in events
+                                           if e["event"] in {"model_request", "model_response", "model_error"}})},
+                "load_seconds": result["components"]["model"].get("load_seconds"),
+                "launcher_exit_status": None,
+                "memory_evidence": memory_metrics(events, strategy, result["config"].get("memory_token_limit")),
                 "recipe_rechecks": result["recipe_rechecks"],
                 "invalid_actions": sum(not a["valid_action"] for a in actions),
                 "action_repair_calls": sum(e["purpose"] == "action_repair" for e in replies),

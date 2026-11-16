@@ -6,8 +6,7 @@ import json
 import pytest
 
 from game_memory.components import Generation, MemoryContext
-from game_memory.memory import (HybridMemory, ProseMemory, StructuredMemory,
-                                _public_prose_fallback, _validate_prose_facts)
+from game_memory.memory import HybridMemory, ProseMemory, StructuredMemory
 from game_memory.runner import _LoggedModel
 
 
@@ -18,134 +17,9 @@ OBSERVATION = "Recipe: dice and grill the cheese."
 NOTE = "Dice and grill cheese."
 
 
-def test_prose_writer_rejects_lost_inventory_and_unearned_progress():
-    previous = "Carried items: red apple\nRecipe progress: none complete"
-    with pytest.raises(ValueError, match="carried_items_disagree_with_action"):
-        _validate_prose_facts(previous, "Carried items: none\nRecipe progress: none complete",
-                              "examine fridge", "an open fridge")
-    with pytest.raises(ValueError, match="recipe_progress_disagrees_with_action"):
-        _validate_prose_facts(previous,
-                              "Carried items: red apple, chicken wing\nRecipe progress: red apple sliced",
-                              "take chicken wing", "You take the chicken wing.")
-    _validate_prose_facts(previous,
-                          "Carried items: red apple, chicken wing\nRecipe progress: none complete",
-                          "take chicken wing", "You take the chicken wing.")
-
-
-def test_prose_writer_keeps_earlier_completed_steps():
-    previous = "Carried items: red apple\nRecipe progress: slice red apple"
-    with pytest.raises(ValueError, match="recipe_progress_dropped"):
-        _validate_prose_facts(previous,
-                              "Carried items: red apple\nRecipe progress: roast red apple",
-                              "cook red apple in oven", "You roast the red apple with the oven.")
-
-
-def test_prose_writer_rejects_dropped_recipe():
-    previous = ("Ingredients: chicken wing, red apple\nDirections: grill chicken wing, "
-                "slice red apple\nCarried items: red apple\nRecipe progress: none complete")
-    with pytest.raises(ValueError, match="recipe_dropped"):
-        _validate_prose_facts(previous,
-                              "Carried items: red apple\nRecipe progress: none complete",
-                              "examine chicken wing", "a raw chicken wing")
-
-
-def test_public_fallback_retains_carried_item_and_new_inspection_result():
-    previous = ("Ingredients: chicken wing, red apple\nDirections: grill chicken wing\n"
-                "Carried items: red apple\nRecipe progress: none complete")
-    model = ScriptedModel((), counter=lambda text: len(text.split()))
-    fallback = _public_prose_fallback(previous, "examine chicken wing",
-                                      "a raw chicken wing", 256, model)
-    assert "Carried items: red apple" in fallback
-    assert "Latest observation: a raw chicken wing" in fallback
-    assert "Directions: grill chicken wing" in fallback
-    with pytest.raises(ValueError, match="new_observation_dropped"):
-        _validate_prose_facts(previous, previous, "examine chicken wing", "a raw chicken wing")
-
-
-def test_public_fallback_keeps_recipe_after_latest_evidence_lines():
-    previous = ("Carried items: chicken wing, red apple\n"
-                "Recipe progress: none complete\n"
-                "Latest action: examine cookbook\n"
-                "Latest observation: You find the recipe.\n"
-                "Ingredients: chicken wing, red apple\n"
-                "Directions: grill the chicken wing; slice the red apple")
-    model = ScriptedModel((), counter=lambda text: len(text.split()))
-    fallback = _public_prose_fallback(previous, "examine knife", "a knife", 256, model)
-    assert "Ingredients: chicken wing, red apple" in fallback
-    assert "Directions: grill the chicken wing" in fallback
-    assert "Latest action: examine knife" in fallback
-    assert "Latest action: examine cookbook" not in fallback
-
-
-def test_prepared_meal_replaces_recipe_ingredients_in_public_fallback():
-    previous = ("Ingredients:\n  chicken wing\n  red apple\nDirections:\n"
-                "  grill the chicken wing\n  slice the red apple\n  prepare meal\n"
-                "Carried items: chicken wing, knife, red apple\n"
-                "Recipe progress: cook chicken wing in toaster, slice red apple")
-    model = ScriptedModel((), counter=lambda text: len(text.split()))
-    observation = "Adding the meal to your inventory."
-    fallback = _public_prose_fallback(previous, "prepare meal", observation, 256, model)
-    assert "Carried items: knife, meal" in fallback
-    assert "Recipe progress: cook chicken wing in toaster, slice red apple, prepare meal" in fallback
-    assert "Meal prepared and carried; all listed preparation directions are complete." in fallback
-    _validate_prose_facts(previous, fallback, "prepare meal", observation)
-
-
-def test_structured_writer_rejects_stale_prepared_meal_and_retains_public_result():
-    previous = json.dumps({
-        "carried_items": ["chicken wing", "knife", "salt"],
-        "recipe_status": {"ingredients": {"chicken wing": True, "salt": True},
-                          "directions": {"grill the chicken wing": True,
-                                         "prepare meal": False}},
-    }, separators=(",", ":"), sort_keys=True)
-    model = ScriptedModel((previous, previous))
-    result = StructuredMemory().update(previous, "prepare meal",
-                                       "Adding the meal to your inventory.", CONTEXT, model)
-    state = json.loads(result.memory)
-    assert state["carried_items"] == ["knife", "meal"]
-    assert state["meal_prepared"] is True
-    assert "recipe_status" not in state
-    assert result.events == (
-        "memory_rejected:structured_meal_inventory_stale",
-        "memory_repair_rejected:structured_meal_inventory_stale",
-        "memory_fallback:public_evidence",
-    )
-
-
-def test_structured_writer_accepts_confirmed_meal_update():
-    previous = json.dumps({"carried_items": ["salt"],
-                           "recipe_status": {"ingredients": {"salt": True},
-                                             "directions": {"prepare meal": False}}})
-    candidate = json.dumps({"carried_items": ["meal"],
-                            "recipe_status": {"ingredients": {"salt": True},
-                                              "directions": {"prepare meal": True}}})
-    model = ScriptedModel((candidate,))
-    result = StructuredMemory().update(previous, "prepare meal",
-                                       "Adding the meal to your inventory.", CONTEXT, model)
-    assert json.loads(result.memory)["carried_items"] == ["meal"]
-    assert "memory_accepted" in result.events
-
-
-def test_structured_public_meal_fallback_handles_writer_chosen_inventory_key():
-    previous = json.dumps({"inventory": ["chicken wing", "salt"],
-                           "recipe_progress": {"ingredients": {"chicken wing": True,
-                                                               "salt": True},
-                                               "directions": {"prepare meal": False}}})
-    model = ScriptedModel((previous, previous))
-    result = StructuredMemory().update(previous, "prepare meal",
-                                       "Adding the meal to your inventory.", CONTEXT, model)
-    assert json.loads(result.memory) == {"inventory": ["meal"], "meal_prepared": True}
-    assert result.events[-1] == "memory_fallback:public_evidence"
-
-
-def test_initial_prose_fallback_retains_public_recipe_after_failed_repair():
-    observation = "Kitchen.\nIngredients: red apple\nDirections: roast red apple"
-    missing = "Carried items: none\nRecipe progress: none complete"
-    model = ScriptedModel((missing, missing), counter=lambda text: len(text.split()))
-    update = ProseMemory().update("", "[INITIAL_OBSERVATION]", observation, CONTEXT, model)
-    assert "Ingredients: red apple\nDirections: roast red apple" in update.memory
-    assert "Carried items: none" in update.memory
-    assert update.events[-1] == "memory_fallback:initial_public_observation"
+# Retired v16 semantic-policy tests: mandatory recipe/inventory/progress
+# retention and Python-built public-fact fallbacks. The v17 tests below instead
+# verify that omissions and factual errors remain observable model outcomes.
 
 
 class ScriptedModel:
@@ -697,3 +571,94 @@ def test_model_error_during_repair_propagates_instead_of_falling_back():
     with pytest.raises(TimeoutError, match="repair timeout"):
         memory.update(memory.empty(), ACTION, OBSERVATION, CONTEXT, model)
     assert [purpose for _, purpose in model.calls] == ["memory", "memory_repair"]
+
+
+@pytest.mark.parametrize("memory,candidate", [
+    (ProseMemory(), "Only remember the knife."),
+    (StructuredMemory(), '{"note":"Only remember the knife."}'),
+])
+def test_fact_omission_is_accepted_without_required_recipe_or_sections(memory, candidate):
+    previous = state_with_note(memory, "Ingredients: apple. Directions: roast apple.")
+    model = ScriptedModel([candidate])
+    result = memory.update(previous, "examine cookbook",
+                           "Ingredients: apple. Directions: roast apple.", CONTEXT, model)
+    assert result.memory == candidate
+    assert result.events == ("memory_accepted",)
+    assert len(model.calls) == 1
+
+
+@pytest.mark.parametrize("memory,candidate", [
+    (ProseMemory(), "Carried items: dragon\nRecipe progress: all complete"),
+    (StructuredMemory(), '{"inventory":["dragon"],"meal_prepared":false}'),
+])
+@pytest.mark.parametrize("action,observation", [
+    ("[INITIAL_OBSERVATION]", "Ingredients: apple\nDirections: roast apple"),
+    ("prepare meal", "Adding the meal to your inventory."),
+    ("take apple", "You take the apple."),
+])
+def test_structurally_valid_factual_errors_are_not_semantically_rejected(
+    memory, candidate, action, observation,
+):
+    previous = state_with_note(memory, "Ingredients: apple. Directions: roast apple.")
+    model = ScriptedModel([candidate])
+    result = memory.update(previous, action, observation, CONTEXT, model)
+    assert result.memory == candidate
+    assert result.events == ("memory_accepted",)
+    assert len(model.calls) == 1
+
+
+@pytest.mark.parametrize("factory", (ProseMemory, StructuredMemory))
+def test_deliberate_empty_write_can_delete_previous_facts(factory):
+    memory = factory()
+    result, model = update(memory, [memory.empty()], previous=state_with_note(memory))
+    assert result.memory == memory.empty()
+    assert result.events == ("memory_accepted",)
+    assert len(model.calls) == 1
+
+
+@pytest.mark.parametrize("factory", (ProseMemory, StructuredMemory))
+def test_failed_initialization_never_injects_public_recipe(factory):
+    memory = factory()
+    rejected = sized_candidate(memory, 257)
+    model = ScriptedModel([rejected, rejected])
+    result = memory.update(memory.empty(), "[INITIAL_OBSERVATION]",
+                           "Initial recipe\nIngredients: apple\nDirections: roast apple",
+                           CONTEXT, model)
+    assert result.memory == memory.empty()
+    assert result.events == ("memory_rejected:over_budget:257>256",
+                             "memory_repair_rejected:over_budget:257>256",
+                             "memory_fallback:previous_valid_memory")
+    assert len(model.calls) == 2
+
+
+@pytest.mark.parametrize("memory,previous", [
+    (ProseMemory(), "  Carried items: apple\nRecipe progress: none complete\n"),
+    (StructuredMemory(), ' { "inventory" : ["apple"], "meal_prepared" : false }\n'),
+])
+def test_failed_meal_update_retains_exact_serialization_without_fact_replacement(memory, previous):
+    rejected = sized_candidate(memory, 257)
+    model = ScriptedModel([rejected, rejected])
+    result = memory.update(previous, "prepare meal", "Adding the meal to your inventory.",
+                           CONTEXT, model)
+    assert result.memory == previous  # Even noncanonical predecessor spacing survives.
+    assert result.events[-1] == "memory_fallback:previous_valid_memory"
+    repair = model.calls[1][0]
+    assert repair[:2] == model.calls[0][0]
+    assert repair[2].content == rejected
+    assert "Candidate rejected: over_budget:257>256" in repair[3].content
+    assert "meal" not in repair[3].content
+    assert "inventory" not in repair[3].content
+
+
+@pytest.mark.parametrize("factory", STRATEGIES)
+def test_v17_metadata_declares_actual_policy_without_changing_rendering(factory):
+    metadata = factory().metadata
+    assert metadata["version"] == 17
+    assert metadata["prompt_version"] == "p1-memory-v17"
+    assert metadata["update_policy"] == "syntax_and_size_one_repair_previous_state_v1"
+    assert metadata["semantic_validation"] == "none"
+    assert metadata["fallback"] == "previous_valid_memory"
+    assert metadata["max_repairs"] == 1
+    assert metadata["render_version"] == "p1-render-v2"
+    assert metadata["implementation"] == factory.__name__
+    assert metadata["is_fake"] is False

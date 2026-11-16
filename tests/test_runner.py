@@ -234,3 +234,11 @@ def test_mismatched_components_are_rejected_before_starting_game(tmp_path):
         with pytest.raises(ValueError, match="strategy"):
             run_episode(config, env, PromptedActor(), FakeMemory("hybrid"), FakeModel(), output_dir=tmp_path)
     assert not list(tmp_path.iterdir())
+
+
+def test_source_and_protocol_match_header_and_result(tmp_path):
+    result, events = execute(tmp_path, EpisodeConfig(action_budget=1))
+    header = next(event for event in events if event["event"] == "episode_start")
+    assert header["source"] == result["source"]
+    assert len(result["source"]["source_digest"]) == 64
+    assert header["protocol_id"] == result["protocol_id"] == "generic-episode-v1"

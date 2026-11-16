@@ -40,3 +40,18 @@ def test_source_digest_detects_executable_change(tmp_path):
     before = source_digest(tmp_path)
     (tmp_path / "game_memory" / "runner.py").write_text("after")
     assert source_digest(tmp_path) != before
+
+
+def test_shared_digest_is_stable_and_detects_dependency_changes(tmp_path):
+    from game_memory.runner import source_digest as shared_digest
+    assert source_digest is shared_digest
+    (tmp_path / "game_memory").mkdir()
+    (tmp_path / "game_memory" / "runner.py").write_text("code")
+    for name in ("requirements.txt", "requirements-model.txt", "AGENTS.md"):
+        (tmp_path / name).write_text(name)
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs" / "experiment-3x2-protocol.md").write_text("protocol")
+    before = shared_digest(tmp_path)
+    assert shared_digest(tmp_path) == before
+    (tmp_path / "requirements-model.txt").write_text("changed dependency")
+    assert shared_digest(tmp_path) != before

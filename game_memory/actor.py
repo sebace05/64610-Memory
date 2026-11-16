@@ -8,7 +8,7 @@ from .components import ACTOR_GUARD_FAILURE_PREFIX, Message, Model
 from .contracts import AgentView
 
 
-PROMPT_VERSIONS = ("v1", "v2", "v2-mechanics", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29")
+PROMPT_VERSIONS = ("v1", "v2", "v2-mechanics", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15", "v16", "v17", "v18", "v19", "v20", "v21", "v22", "v23", "v24", "v25", "v26", "v27", "v28", "v29", "v30")
 REPEATED_OBSERVATION_GUARD_VERSION = "v1"
 
 # Object and book inspections are expected to be stable. Room descriptions and
@@ -324,13 +324,13 @@ class PromptedActor:
                 "repeated_observation_guard": "disabled; game action budget is the limit"}
         if self.prompt_version in ("v19", "v20", "v21"):
             metadata["immediate_repeat_policy"] = "exclude_previous_action_v1"
-        if self.prompt_version in ("v24", "v25", "v26", "v27", "v28", "v29"):
+        if self.prompt_version in ("v24", "v25", "v26", "v27", "v28", "v29", "v30"):
             metadata["action_output_policy"] = "optional_article_exact_match_v1"
         if self.prompt_version in ("v27", "v28"):
             metadata["action_review_policy"] = "qwen_prepare_meal_ingredient_review_v1"
         if self.prompt_version == "v28":
             metadata["action_repair_policy"] = "qwen_unavailable_action_progress_review_v1"
-        if self.prompt_version == "v29":
+        if self.prompt_version in ("v29", "v30"):
             metadata["action_review_policy"] = "qwen_format_neutral_prepare_review_v1"
             metadata["action_repair_policy"] = "qwen_format_neutral_unavailable_review_v1"
         if self.prompt_version in ("v2-mechanics", "v3", "v4", "v5", "v6", "v7", "v8", "v9", "v10", "v11", "v12", "v13", "v14", "v15"):
@@ -344,7 +344,8 @@ class PromptedActor:
         self._information_results.clear()
 
     def choose_action(self, view: AgentView, memory: str, model: Model) -> str:
-        if self._pending_action and self._is_information_action(self._pending_action):
+        if (self.prompt_version != "v30" and self._pending_action
+                and self._is_information_action(self._pending_action)):
             results = self._information_results.setdefault(self._pending_action, set())
             results.add(view.observation)
         self._pending_action = None
@@ -399,6 +400,19 @@ class PromptedActor:
             instructions = PREREQUISITE_DECISION_RULE
         if self.prompt_version in ("v23", "v24", "v27", "v28", "v29"):
             instructions = ORDERED_PREREQUISITE_RULE
+        if self.prompt_version == "v30":
+            instructions = (
+                ORDERED_PREREQUISITE_RULE.replace("bounded memory", f"supplied {context_name}")
+                + " Read the supplied context for facts regardless of whether it is prose "
+                "or JSON; no particular headings or keys are required. Do not assume the "
+                "recipe remains available. If information needed for this decision is "
+                "missing or uncertain, choose a legal cookbook reread or another normal "
+                "information action when useful, accounting for recheck_cost and "
+                "budget_remaining. When the needed information is known, use it without "
+                "a forced reread. Ingredients must be carried together with their required "
+                "preparation complete before preparing the meal. An item put down is no "
+                "longer carried. After preparing the meal, choose 'eat meal' when allowed."
+            )
         if self.prompt_version == "v25":
             instructions = INGREDIENT_STATUS_RULE
         if self.prompt_version == "v26":
@@ -423,18 +437,21 @@ class PromptedActor:
             generation = model.generate(
                 messages, purpose="action" if attempt == 0 else "action_repair"
             )
-            if self.prompt_version in ("v27", "v28", "v29"):
+            if self.prompt_version in ("v27", "v28", "v29", "v30"):
                 proposed, _ = validate_action_output(generation.text, None)
                 if proposed and _normalized_text(proposed) == "prepare meal":
+                    review_rule = (FORMAT_NEUTRAL_PREPARE_REVIEW_RULE
+                                   if self.prompt_version in ("v29", "v30")
+                                   else PREPARE_MEAL_REVIEW_RULE)
+                    if self.prompt_version == "v30":
+                        review_rule = review_rule.replace("bounded memory", f"supplied {context_name}")
                     generation = model.generate(
-                        (Message("system", FORMAT_NEUTRAL_PREPARE_REVIEW_RULE
-                                 if self.prompt_version == "v29" else PREPARE_MEAL_REVIEW_RULE),
-                         messages[1]),
+                        (Message("system", review_rule), messages[1]),
                         purpose="action_review",
                     )
             action, reason = validate_action_output(
                 generation.text, allowed_for_turn,
-                allow_optional_article=self.prompt_version in ("v24", "v25", "v26", "v27", "v28", "v29"))
+                allow_optional_article=self.prompt_version in ("v24", "v25", "v26", "v27", "v28", "v29", "v30"))
             if reason is None and self.prompt_version in ("v20", "v21"):
                 explanation = json.loads(generation.text).get("reason")
                 if not isinstance(explanation, str) or not explanation.strip():
@@ -444,13 +461,18 @@ class PromptedActor:
                     and "Ingredients:" in memory and "Directions:" in memory):
                 reason = "premature_ingredient_eat"
             if reason is None:
-                self._accept_action(action)
-                self._last_action = action
+                if self.prompt_version != "v30":
+                    self._accept_action(action)
+                    self._last_action = action
                 return action
             if attempt == 0:
-                if self.prompt_version in ("v28", "v29") and reason == "unavailable_action":
-                    messages = (Message("system", FORMAT_NEUTRAL_UNAVAILABLE_REVIEW_RULE
-                                        if self.prompt_version == "v29" else UNAVAILABLE_ACTION_REVIEW_RULE),
+                if self.prompt_version in ("v28", "v29", "v30") and reason == "unavailable_action":
+                    repair_rule = (FORMAT_NEUTRAL_UNAVAILABLE_REVIEW_RULE
+                                   if self.prompt_version in ("v29", "v30")
+                                   else UNAVAILABLE_ACTION_REVIEW_RULE)
+                    if self.prompt_version == "v30":
+                        repair_rule = repair_rule.replace("bounded memory", f"supplied {context_name}")
+                    messages = (Message("system", repair_rule),
                                 Message("user", messages[1].content +
                                         "\nPrevious unavailable proposal: " + str(action)))
                     continue

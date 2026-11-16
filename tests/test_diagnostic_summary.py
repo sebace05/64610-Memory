@@ -98,3 +98,54 @@ def test_infrastructure_errors_are_separate_from_game_losses(tmp_path):
     assert report["logging_checks_passed"]
     assert report["real_infrastructure_errors"] == 1 and report["real_completed"] == 0
     assert not report["infrastructure_checks_passed"]
+    usage = report["episodes"][0]["generation_by_purpose"]["action"]
+    assert usage["calls"] == usage["failed_calls"] == 1
+    assert usage["returned_calls"] == 0
+    assert report["episodes"][0]["usage_complete"] is False
+
+
+def test_memory_provenance_sizes_and_empty_writes():
+    from game_memory.summarize_diagnostics import memory_metrics
+    events = [
+        {"event": "model_response", "sequence": 1, "step": 0, "purpose": "memory",
+         "text": "bad json", "output_tokens": 3},
+        {"event": "model_response", "sequence": 2, "step": 0, "purpose": "memory_repair",
+         "text": "{}", "output_tokens": 2},
+        {"event": "memory_update", "sequence": 3, "step": 0, "memory": "{}", "memory_tokens": 1,
+         "validation_events": ["memory_rejected:malformed_json", "memory_repair_accepted"]},
+        {"event": "model_response", "sequence": 4, "step": 1, "purpose": "memory", "output_tokens": 99},
+        {"event": "model_response", "sequence": 5, "step": 1, "purpose": "memory_repair", "output_tokens": 20},
+        {"event": "memory_update", "sequence": 6, "step": 1, "memory": "{}", "memory_tokens": 1,
+         "validation_events": ["memory_rejected:over_budget:70>64", "memory_repair_rejected:malformed_json",
+                               "memory_fallback:previous_valid_memory"]},
+    ]
+    metrics = memory_metrics(events, "structured", 64)
+    assert metrics["memory_updates"] == 2
+    assert (metrics["primary_accepted"], metrics["repaired_accepted"], metrics["previous_state_fallback"]) == (0, 1, 1)
+    assert metrics["accepted_empty"] == 1
+    assert metrics["syntax_rejections"] == 2 and metrics["over_budget_rejections"] == 1
+    assert [c["rendered_tokens"] for c in metrics["candidates"]] == [None, 1, 70, None]
+    assert metrics["candidates"][0]["raw_output_tokens"] == 3
+
+
+def test_legacy_unknown_and_prose_emptiness_are_not_normalized():
+    from game_memory.summarize_diagnostics import memory_metrics
+    events = [{"event": "memory_update", "memory": text, "memory_tokens": 1,
+               "validation_events": labels} for text, labels in [
+                   ("", ["memory_accepted"]), (" ", ["memory_accepted"]),
+                   ("", ["memory_fallback:public_evidence"]), ("{}", [])]]
+    metrics = memory_metrics(events, "prose", 64)
+    assert metrics["accepted_empty"] == 1 and metrics["outcome_unknown"] == 2
+    assert metrics["updates"][1]["accepted_empty"] is False
+    assert metrics["format_checks"][3]["format_adherence"] is False
+
+
+def test_preserved_reproduction_backward_reading():
+    from pathlib import Path
+    root = Path(__file__).resolve().parents[1] / "artifacts/reproduction-v29-v16-20261115/prose-p2"
+    if not root.exists():
+        pytest.skip("preserved reproduction is not distributed with source")
+    report = summarize(root)
+    assert report["logging_checks_passed"]
+    assert sum(e["memory_evidence"]["outcome_unknown"] for e in report["episodes"]) == 15
+    assert all(e["launcher_exit_status"] is None for e in report["episodes"])

@@ -510,3 +510,127 @@ def test_state_change_invalidates_stale_inspection_result():
                                "The fridge was closed; now it is open and contains chicken.",
                                changed) == "examine fridge"
     assert len(changed.calls) == 1
+
+
+@pytest.mark.parametrize("memory", ["", "Remember the meal.", '{"notes":"meal"}'])
+def test_v30_keeps_legal_rereads_and_repeated_information_actions(memory):
+    actor = PromptedActor(prompt_version="v30")
+    for _ in range(3):
+        model = Responses('{"action":"examine cookbook"}')
+        assert actor.choose_action(view(), memory, model) == "examine cookbook"
+        assert len(model.calls) == 1
+        assert '"examine cookbook"' in model.calls[0][0][1].content
+    assert actor._information_results == {}
+    assert actor._pending_action is None
+    assert actor._last_action is None
+
+
+def test_v30_policy_is_format_neutral_and_does_not_force_recovery():
+    prompts = []
+    for memory in ("The apple is carried; roast it.", '{"arbitrary":["apple carried","roast"]}'):
+        model = Responses('{"action":"inventory"}')
+        assert PromptedActor(prompt_version="v30").choose_action(view(), memory, model) == "inventory"
+        prompts.append(model.calls[0][0][0].content)
+        assert model.calls[0][0][1].content.endswith(memory)
+    assert prompts[0] == prompts[1]
+    assert "missing or uncertain" in prompts[0]
+    assert "without a forced reread" in prompts[0]
+    assert "no particular headings or keys" in prompts[0]
+    assert "grilling uses toaster" in prompts[0]
+
+
+@pytest.mark.parametrize("full_history", [False, True])
+def test_v30_review_and_repair_use_only_supplied_evidence(full_history):
+    actor = PromptedActor(prompt_version="v30", full_history=full_history)
+    current = AgentView("CURRENT_PUBLIC", "Prepare the meal.",
+                        ("prepare meal", "inventory", "examine cookbook"), 10, 2)
+    # A prior turn must not supply evidence to either review or repair.
+    actor.choose_action(view("OLD_SECRET"), "OLD_MEMORY",
+                        Responses('{"action":"examine cookbook"}'))
+    model = Responses('{"action":"take unavailable item"}',
+                      '{"action":"prepare meal"}', '{"action":"inventory"}')
+    assert actor.choose_action(current, "SUPPLIED_CONTEXT", model) == "inventory"
+    assert [purpose for _, purpose in model.calls] == ["action", "action_repair", "action_review"]
+    primary, repair, review = [messages for messages, _ in model.calls]
+    assert repair[1].content == primary[1].content + "\nPrevious unavailable proposal: take unavailable item"
+    assert review[1] == repair[1]
+    for messages, _ in model.calls:
+        assert len(messages) == 2
+        content = "\n".join(message.content for message in messages)
+        assert "CURRENT_PUBLIC" in content and "SUPPLIED_CONTEXT" in content
+        assert "OLD_SECRET" not in content and "OLD_MEMORY" not in content
+        assert ("visible interaction history" in messages[0].content) == full_history
+    assert actor._information_results == {}
+
+
+def test_v30_prior_turns_cannot_change_requests_even_after_repair():
+    used = PromptedActor(prompt_version="v30")
+    used.choose_action(view("OLD_FACT"), "OLD_NOTES",
+                       Responses('{"action":"examine cookbook"}'))
+    used.choose_action(view("OLD_RECIPE"), "OLD_INVENTORY",
+                       Responses('bad', '{"action":"inventory"}'))
+    used_model, fresh_model = Responses('{"action":"inventory"}'), Responses('{"action":"inventory"}')
+    assert used.choose_action(view(), "ONLY_MEMORY", used_model) == "inventory"
+    assert PromptedActor(prompt_version="v30").choose_action(view(), "ONLY_MEMORY", fresh_model) == "inventory"
+    assert used_model.calls == fresh_model.calls
+    assert used._information_results == {}
+
+
+@pytest.mark.parametrize("invalid", ['bad', '{"action":false}', '{"action":"unavailable"}'])
+def test_v30_failed_repair_never_substitutes_a_useful_action(invalid):
+    model = Responses(invalid, invalid)
+    result = PromptedActor(prompt_version="v30").choose_action(view(), "notes", model)
+    assert result == "[INVALID_ACTION_OUTPUT] " + invalid
+    assert [purpose for _, purpose in model.calls] == ["action", "action_repair"]
+
+
+def test_v30_optional_article_and_metadata_preserve_v29_review_policies():
+    current = AgentView("An apple", "Prepare the meal.", ("take apple",), 10, 2)
+    model = Responses('{"action":"take the apple"}')
+    actor = PromptedActor(prompt_version="v30")
+    assert actor.choose_action(current, "notes", model) == "take apple"
+    metadata = actor.metadata
+    assert metadata == {**PromptedActor(prompt_version="v29").metadata,
+                        "prompt_version": "s2-action-v30"}
+    assert PromptedActor(full_history=True, prompt_version="v30").metadata["prompt_version"] == "full-history-v30"
+    assert PromptedActor().metadata["prompt_version"] == "s2-action-v1"
+
+
+def test_v30_diagnostic_and_bounded_instructions_differ_only_in_context_label():
+    runs = []
+    for full_history in (False, True):
+        model = Responses('{"action":"unavailable"}', '{"action":"prepare meal"}',
+                          '{"action":"inventory"}')
+        PromptedActor(prompt_version="v30", full_history=full_history).choose_action(view(), "context", model)
+        runs.append(model.calls)
+    for (bounded, purpose), (history, history_purpose) in zip(*runs):
+        assert purpose == history_purpose
+        assert bounded[0].content.replace("supplied memory", "CONTEXT") == history[0].content.replace(
+            "supplied visible interaction history", "CONTEXT")
+        assert bounded[1].content.replace("Bounded memory:", "CONTEXT:") == history[1].content.replace(
+            "Visible interaction history (diagnostic):", "CONTEXT:")
+
+
+def test_v30_keeps_model_approved_prepare_meal():
+    current = AgentView("Ready to prepare.", "Prepare and eat the meal.",
+                        ("prepare meal", "inventory"), 10, 2)
+    model = Responses('{"action":"prepare meal"}', '{"action":"prepare meal"}')
+    assert PromptedActor(prompt_version="v30").choose_action(current, "notes", model) == "prepare meal"
+    assert [purpose for _, purpose in model.calls] == ["action", "action_review"]
+    assert model.calls[0][0][1] == model.calls[1][0][1]
+
+
+@pytest.mark.parametrize("failure_purpose,outputs", [
+    ("action", ()),
+    ("action_review", ('{"action":"prepare meal"}',)),
+    ("action_repair", ('{"action":"unavailable"}',)),
+])
+def test_v30_model_errors_propagate_without_action_substitution(failure_purpose, outputs):
+    class FailingModel(Responses):
+        def generate(self, messages, *, purpose):
+            if purpose == failure_purpose:
+                raise RuntimeError("inference failed")
+            return super().generate(messages, purpose=purpose)
+
+    with pytest.raises(RuntimeError, match="inference failed"):
+        PromptedActor(prompt_version="v30").choose_action(view(), "notes", FailingModel(*outputs))

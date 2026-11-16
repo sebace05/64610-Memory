@@ -194,6 +194,10 @@ def test_real_inference_cli_runs_bounded_memory_and_audits_isolation(tiny_adapte
     result = json.loads(next(output.glob("*/result.json")).read_text())
     assert result["kind"] == "development"
     assert result["components"]["memory"]["is_fake"] is False
+    manifest = json.loads((output / "pilot-manifest.json").read_text())
+    assert manifest["memory"] == result["components"]["memory"]
+    assert manifest["source"] == result["source"]
+    assert manifest["protocol_id"] == result["protocol_id"] == "generic-bounded-v1"
     assert result["usage_by_purpose"]["memory"]["calls"] == 1
     report = summarize(output)
     assert report["kind"] == "bounded_memory_checkpoint_report"

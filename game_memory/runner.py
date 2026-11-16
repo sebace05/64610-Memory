@@ -7,6 +7,7 @@ _LoggedModel records inference calls made by both the actor and memory writer.
 
 from dataclasses import asdict, dataclass, field
 import json
+from hashlib import sha256
 from pathlib import Path
 import subprocess
 import time
@@ -19,6 +20,18 @@ from .contracts import CookingWorldConfig
 from .environment import CookingWorldEnvironment
 
 
+def source_digest(repo: Path) -> str:
+    """Fingerprint the executable Python and dependency/protocol files."""
+    paths = sorted((*((repo / "game_memory").glob("*.py")),
+                    repo / "requirements.txt", repo / "requirements-model.txt",
+                    repo / "AGENTS.md", repo / "docs" / "experiment-3x2-protocol.md"))
+    digest = sha256()
+    for path in paths:
+        digest.update(str(path.relative_to(repo)).encode() + b"\0")
+        digest.update(path.read_bytes() + b"\0")
+    return digest.hexdigest()
+
+
 def source_metadata() -> dict:
     """Record source identity without putting Git status contents in the log."""
     root = Path(__file__).resolve().parents[1]
@@ -27,9 +40,10 @@ def source_metadata() -> dict:
                                 capture_output=True, text=True, check=True, timeout=5)
         status = subprocess.run(["git", "status", "--porcelain"], cwd=root,
                                 capture_output=True, text=True, check=True, timeout=5)
-        return {"commit": commit.stdout.strip(), "worktree_dirty": bool(status.stdout)}
+        return {"commit": commit.stdout.strip(), "worktree_dirty": bool(status.stdout),
+                "source_digest": source_digest(root)}
     except (OSError, subprocess.SubprocessError):
-        return {"commit": None, "worktree_dirty": None}
+        return {"commit": None, "worktree_dirty": None, "source_digest": source_digest(root)}
 
 
 @dataclass(frozen=True)
@@ -131,6 +145,7 @@ def run_episode(
     model: Model,
     *,
     output_dir: Path,
+    protocol_id: str = "generic-episode-v1",
 ) -> dict:
     """Run one episode; caller owns and closes the environment.
 
@@ -138,6 +153,8 @@ def run_episode(
     status=error, with success=None; they must not be counted as game losses.
     This is not a resumable batch executor (S3).
     """
+    if not isinstance(protocol_id, str) or not protocol_id.strip():
+        raise ValueError("protocol_id must be nonempty")
     # Reject mismatched components before creating artifacts. Otherwise a run
     # could be labeled with settings different from those the game actually used.
     if (environment.recheck_cost, environment.action_budget) != (
@@ -233,7 +250,7 @@ def run_episode(
             # 1. Record the planned configuration, then reset the real game.
             emit("episode_start", schema_version=1, episode_id=episode_id, kind=kind,
                  config=asdict(config), components=components,
-                 source=source,
+                 source=source, protocol_id=protocol_id,
                  memory_token_limit_applies=not full_history,
                  memory_update_policy="initialize_and_after_nonterminal_actions")
             view = environment.reset(config.seed, config.game)
@@ -293,6 +310,7 @@ def run_episode(
             "config": asdict(config),
             "components": components,
             "source": source,
+            "protocol_id": protocol_id,
             "success": (False if policy_termination_reason else last.success)
                        if outcome == "completed" else None,
             "failure": (False if policy_termination_reason else last.failure)
