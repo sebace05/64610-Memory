@@ -29,8 +29,10 @@ def test_shared_environment_restores_noisy_java_gateway_startup():
     broken = subprocess.run([sys.executable, "-c", script], cwd=root, env=base,
                             capture_output=True, text=True, timeout=30)
     assert broken.returncode != 0
-    assert "invalid literal for int()" in broken.stderr
-    assert "[os,container]" in broken.stderr
+    assert "Java initialization is incompatible before Py4J" in broken.stderr
+    assert "JVM output:" in broken.stderr
+    assert ("[os,container]" in broken.stderr
+            or "No tag set matches selection: os+container" in broken.stderr)
     fixed = runtime_environment(base)
     assert fixed == runtime_environment(fixed)
     assert base["JAVA_TOOL_OPTIONS"] == "-Xmx128m -Xlog:os+container=trace:stdout"

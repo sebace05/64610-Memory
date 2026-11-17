@@ -8,7 +8,7 @@ from game_memory.actor import PromptedActor
 from game_memory.components import Generation
 from game_memory.environment import CookingWorldEnvironment
 from game_memory.integration_fixtures import FakeModel
-from game_memory.memory import HybridMemory, ProseMemory, StructuredMemory
+from game_memory.memory import ProseMemory, StructuredMemory
 from game_memory.runner import EpisodeConfig, run_episode
 
 
@@ -50,7 +50,6 @@ class ScriptedWriterModel(FakeModel):
 @pytest.mark.parametrize("memory,candidate", [
     (ProseMemory(), "Need flour and water."),
     (StructuredMemory(), '{"note":"Need flour and water."}'),
-    (HybridMemory(), '{"prose":"Need flour and water.","structured":{}}'),
 ])
 @pytest.mark.parametrize("price", [2, 5])
 def test_production_memory_runs_through_real_runner_and_simulator(
@@ -99,7 +98,6 @@ def test_production_memory_runs_through_real_runner_and_simulator(
 @pytest.mark.parametrize("memory,candidate", [
     (ProseMemory(), "SECOND_EPISODE"),
     (StructuredMemory(), '{"note":"SECOND_EPISODE"}'),
-    (HybridMemory(), '{"prose":"SECOND_EPISODE","structured":{}}'),
 ])
 def test_same_strategy_object_starts_each_runner_episode_empty(tmp_path, memory, candidate):
     config = EpisodeConfig(strategy=memory.strategy, action_budget=1)
@@ -128,8 +126,6 @@ def test_same_strategy_object_starts_each_runner_episode_empty(tmp_path, memory,
 @pytest.mark.parametrize("memory,extreme,candidate", [
     (StructuredMemory(), '{"n":1e-9999999999999999999}',
      '{"note":"repaired"}'),
-    (HybridMemory(), '{"prose":"","structured":{"n":1e-9999999999999999999}}',
-     '{"prose":"repaired","structured":{}}'),
 ])
 def test_unrepresentable_number_is_logged_as_memory_rejection(
     tmp_path, memory, extreme, candidate,

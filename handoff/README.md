@@ -1,5 +1,11 @@
 # Evidence for the Modal handoff
 
+**Laptop continuation, November 16:** the originally requested launcher is now
+implemented and the single A10 JSON seed-1 pilot succeeded. See
+[`docs/modal-calibration.md`](../docs/modal-calibration.md) for the current
+workflow and [the pilot report](../docs/modal-pilot-2026-11-16.md) for results.
+The archive and original handoff requirements below remain historical evidence.
+
 Clone branch `codex/modal-calibration-handoff` for the current implementation
 and instructions. Start with `docs/modal-laptop-setup.md`, then provide
 `docs/codex-modal-handoff-prompt.md` to the laptop Codex agent.

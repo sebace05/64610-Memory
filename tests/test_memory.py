@@ -6,11 +6,11 @@ import json
 import pytest
 
 from game_memory.components import Generation, MemoryContext
-from game_memory.memory import HybridMemory, ProseMemory, StructuredMemory
+from game_memory.memory import ProseMemory, StructuredMemory
 from game_memory.runner import _LoggedModel
 
 
-STRATEGIES = (ProseMemory, StructuredMemory, HybridMemory)
+STRATEGIES = (ProseMemory, StructuredMemory)
 CONTEXT = MemoryContext("Prepare the meal.", 80, 2, 256)
 ACTION = "[INITIAL_OBSERVATION]"
 OBSERVATION = "Recipe: dice and grill the cheese."
@@ -52,8 +52,6 @@ def state_with_note(memory, note=NOTE):
     if isinstance(memory, ProseMemory):
         return note
     obj = {"note": note}
-    if isinstance(memory, HybridMemory):
-        obj = {"prose": note, "structured": {}}
     return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
@@ -73,21 +71,20 @@ def update(memory, outputs, *, previous=None, context=CONTEXT, counter=len):
 @pytest.mark.parametrize("factory,state,rendered", [
     (ProseMemory, "", ""),
     (StructuredMemory, "{}", "{}"),
-    (HybridMemory, '{"prose":"","structured":{}}', "Prose:\n\nStructured JSON:\n{}"),
 ])
 def test_empty_states_are_deterministic_and_have_no_task_information(factory, state, rendered):
     memory = factory()
     assert memory.empty() == state == memory.empty()
     assert memory.render(state) == rendered == memory.render(state)
     metadata = memory.metadata
-    assert metadata["strategy"] in {"prose", "structured", "hybrid"}
+    assert metadata["strategy"] in {"prose", "structured"}
     assert metadata["is_fake"] is False and metadata["max_repairs"] == 1
     assert metadata["prompt_version"] and metadata["render_version"]
     json.dumps(metadata)
 
 
 @pytest.mark.parametrize("factory", STRATEGIES)
-def test_all_three_process_same_fixture_under_shared_256_allowance(factory):
+def test_both_writers_process_same_fixture_under_shared_256_allowance(factory):
     memory = factory()
     state = state_with_note(memory)
     result, model = update(memory, [state])
@@ -119,8 +116,8 @@ def test_writer_substantive_instructions_and_evidence_match_across_formats():
         payload = json.loads(messages[1].content)
         payload.pop("previous_memory")  # Only representation differs.
         evidence.append(payload)
-    assert instructions[0] == instructions[1] == instructions[2]
-    assert evidence[0] == evidence[1] == evidence[2]
+    assert instructions[0] == instructions[1]
+    assert evidence[0] == evidence[1]
 
 
 def test_prose_preserves_content_and_whitespace_verbatim():
@@ -158,15 +155,13 @@ def test_json_whitespace_inside_values_is_preserved_and_counted():
     assert model.counted[-1] == expected
 
 
-@pytest.mark.parametrize("factory", (StructuredMemory, HybridMemory))
+@pytest.mark.parametrize("factory", (StructuredMemory,))
 @pytest.mark.parametrize("number", (
     "9007199254740993.0", "1e-400", "0.10000000000000001",
 ))
 def test_numeric_value_change_requests_repair_instead_of_corrupting_fact(factory, number):
     memory = factory()
     raw = f'{{"quantity":{number}}}'
-    if isinstance(memory, HybridMemory):
-        raw = f'{{"prose":"","structured":{raw}}}'
     replacement = state_with_note(memory, f"Quantity {number}.")
     result, model = update(memory, [raw, replacement])
     assert result.memory == replacement
@@ -176,23 +171,19 @@ def test_numeric_value_change_requests_repair_instead_of_corrupting_fact(factory
     assert [purpose for _, purpose in model.calls] == ["memory", "memory_repair"]
 
 
-@pytest.mark.parametrize("factory", (StructuredMemory, HybridMemory))
+@pytest.mark.parametrize("factory", (StructuredMemory,))
 def test_equivalent_decimal_formatting_remains_valid(factory):
     memory = factory()
     raw = '{"quantity":1.2300}'
-    if isinstance(memory, HybridMemory):
-        raw = '{"prose":"","structured":{"quantity":1.2300}}'
     result, _ = update(memory, [raw])
     assert "1.23" in memory.render(result.memory)
     assert "1.2300" not in memory.render(result.memory)
 
 
-@pytest.mark.parametrize("factory", (StructuredMemory, HybridMemory))
+@pytest.mark.parametrize("factory", (StructuredMemory,))
 def test_unrepresentable_json_number_accepts_valid_repair(factory):
     memory = factory()
     extreme = '{"n":1e-9999999999999999999}'
-    if isinstance(memory, HybridMemory):
-        extreme = '{"prose":"","structured":{"n":1e-9999999999999999999}}'
     replacement = state_with_note(memory, "Retain exact quantity as text")
 
     result, model = update(memory, [extreme, replacement])
@@ -203,12 +194,10 @@ def test_unrepresentable_json_number_accepts_valid_repair(factory):
     assert [purpose for _, purpose in model.calls] == ["memory", "memory_repair"]
 
 
-@pytest.mark.parametrize("factory", (StructuredMemory, HybridMemory))
+@pytest.mark.parametrize("factory", (StructuredMemory,))
 def test_unrepresentable_json_number_then_bad_repair_retains_exact_previous(factory):
     memory = factory()
     extreme = '{"n":1e-9999999999999999999}'
-    if isinstance(memory, HybridMemory):
-        extreme = '{"prose":"","structured":{"n":1e-9999999999999999999}}'
     previous = state_with_note(memory, "Keep this earlier fact")
 
     result, model = update(memory, [extreme, "malformed repair"], previous=previous)
@@ -220,12 +209,10 @@ def test_unrepresentable_json_number_then_bad_repair_retains_exact_previous(fact
     assert len(model.calls) == 2
 
 
-@pytest.mark.parametrize("factory", (StructuredMemory, HybridMemory))
+@pytest.mark.parametrize("factory", (StructuredMemory,))
 def test_unrepresentable_json_number_initialization_falls_back_to_empty(factory):
     memory = factory()
     extreme = '{"n":1e-9999999999999999999}'
-    if isinstance(memory, HybridMemory):
-        extreme = '{"prose":"","structured":{"n":1e-9999999999999999999}}'
 
     result, model = update(memory, [extreme, "malformed repair"])
 
@@ -234,18 +221,6 @@ def test_unrepresentable_json_number_initialization_falls_back_to_empty(factory)
                              "memory_repair_rejected:malformed_json",
                              "memory_fallback:previous_valid_memory")
     assert len(model.calls) == 2
-
-
-def test_hybrid_render_is_deterministic_and_preserves_duplicate_facts():
-    raw = ' {"structured": {"z": 2, "a": "Same fact."}, "prose": "Same fact."} '
-    expected = 'Prose:\nSame fact.\nStructured JSON:\n{"a":"Same fact.","z":2}'
-    memory = HybridMemory()
-    result, model = update(memory, [raw])
-    assert memory.render(result.memory) == expected == memory.render(raw)
-    assert json.loads(result.memory) == json.loads(raw)
-    assert expected.count("Same fact.") == 2
-    assert model.counted[-1] == expected
-    assert result.events == ("memory_json_canonicalized", "memory_accepted")
 
 
 @pytest.mark.parametrize("factory", STRATEGIES)
@@ -280,40 +255,6 @@ def test_json_punctuation_and_keys_count_not_just_values():
     assert result.memory == memory.empty()
     assert candidate in model.counted
     assert result.events[0].startswith("memory_rejected:over_budget:")
-
-
-def test_hybrid_uses_one_combined_allowance_including_labels_and_separators():
-    memory = HybridMemory()
-    candidate = json.dumps({"prose": "x" * 130, "structured": {"note": "y" * 130}})
-    prose = json.loads(candidate)["prose"]
-    structured = json.dumps(json.loads(candidate)["structured"], separators=(",", ":"))
-    assert len(prose) <= 256 and len(structured) <= 256
-    rendered = f"Prose:\n{prose}\nStructured JSON:\n{structured}"
-    assert len(rendered) > 256
-    result, model = update(memory, [candidate, candidate])
-    assert result.memory == memory.empty()
-    assert rendered in model.counted
-    # Labels alone also matter when both content portions otherwise fit.
-    result, _ = update(memory, [candidate, candidate], context=replace(
-        CONTEXT, memory_token_limit=len(prose) + len(structured)))
-    assert result.events[0].startswith("memory_rejected:over_budget:")
-
-
-def test_json_heavy_hybrid_uses_exact_combined_boundary():
-    memory = HybridMemory()
-    def candidate(size):
-        base = '{"prose":"","structured":{"note":""}}'
-        overhead = len(memory.render(base))
-        return json.dumps({"prose": "", "structured": {"note": "x" * (size - overhead)}},
-                          separators=(",", ":"))
-    exact = candidate(256)
-    oversized = candidate(257)
-    assert len(memory.render(exact)) == 256
-    assert len(memory.render(oversized)) == 257
-    accepted, _ = update(memory, [exact])
-    rejected, _ = update(memory, [oversized, oversized])
-    assert accepted.memory == exact
-    assert rejected.memory == memory.empty()
 
 
 @pytest.mark.parametrize("raw,reason", [
@@ -353,7 +294,6 @@ def test_json_strings_preserve_escaped_quotes_braces_and_unicode_keys():
 
 @pytest.mark.parametrize("factory,raw", [
     (ProseMemory, "\ud800"),
-    (HybridMemory, '{"prose":"\\ud800","structured":{}}'),
 ])
 def test_unpaired_unicode_in_prose_content_requests_repair(factory, raw):
     memory = factory()
@@ -370,25 +310,6 @@ def test_very_long_single_value_is_checked_as_complete_json():
     assert result.memory == "{}"
     assert result.events[0].startswith("memory_rejected:over_budget:")
     assert memory.render(raw) in model.counted
-
-
-@pytest.mark.parametrize("raw", [
-    '{}',
-    '{"prose":""}',
-    '{"prose":"","structured":{},"hidden_fact":"secret"}',
-    '{"prose":{},"structured":{}}',
-    '{"prose":"","structured":[]}',
-    '{"prose":"","structured":null}',
-    '{"prose":"a","prose":"b","structured":{}}',
-    '{"prose":"","structured":{"x":NaN}}',
-])
-def test_hybrid_rejects_invalid_envelopes_including_unrendered_extra_fields(raw):
-    memory = HybridMemory()
-    result, model = update(memory, [raw, memory.empty()])
-    assert result.memory == memory.empty()
-    assert result.events[0].startswith("memory_rejected:")
-    assert result.events[-1] == "memory_repair_accepted"
-    assert len(model.calls) == 2
 
 
 @pytest.mark.parametrize("factory", STRATEGIES)
@@ -418,7 +339,7 @@ def test_failed_repair_retains_exact_previous_valid_state_with_only_two_calls(fa
     assert len(model.calls) == 2
 
 
-@pytest.mark.parametrize("factory", (StructuredMemory, HybridMemory))
+@pytest.mark.parametrize("factory", (StructuredMemory,))
 def test_failed_malformed_initialization_falls_back_to_valid_empty_state(factory):
     memory = factory()
     result, model = update(memory, ["malformed", "still malformed"])
@@ -428,7 +349,7 @@ def test_failed_malformed_initialization_falls_back_to_valid_empty_state(factory
     assert len(model.calls) == 2
 
 
-@pytest.mark.parametrize("factory", (StructuredMemory, HybridMemory))
+@pytest.mark.parametrize("factory", (StructuredMemory,))
 def test_malformed_repair_retains_exact_nonempty_previous_state(factory):
     memory = factory()
     previous = state_with_note(memory, "Retained fact")
@@ -551,7 +472,7 @@ def test_oversized_predecessor_is_a_contract_error_before_generation(factory):
 
 def test_allowance_too_small_for_empty_representation_is_explicit():
     model = ScriptedModel([])
-    memory = HybridMemory()
+    memory = StructuredMemory()
     with pytest.raises(ValueError, match="over_budget"):
         memory.update(memory.empty(), ACTION, OBSERVATION,
                       replace(CONTEXT, memory_token_limit=1), model)

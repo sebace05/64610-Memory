@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 from .actor import PROMPT_VERSIONS, PromptedActor
+from .choice_actor import LegalChoiceActor
 from .contracts import CookingWorldConfig
 from .environment import CookingWorldEnvironment
 from .diagnostics import FullHistoryMemory
@@ -14,15 +15,13 @@ from .runner import EpisodeConfig, run_episode
 
 
 def main(argv=None, *, model=None) -> int:
-    # Read launch options, not saved JSON artifacts. Example:
-    # python -m game_memory.run_episode --strategy hybrid --recheck-cost 5
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--backend", choices=["fake", "transformers"], default="fake")
-    parser.add_argument("--strategy", choices=["prose", "structured", "hybrid", "full_history"],
+    parser.add_argument("--strategy", choices=["prose", "structured", "full_history"],
                         default="prose")
     parser.add_argument("--recheck-cost", type=int, choices=[2, 5], default=2)
-    parser.add_argument("--actor-prompt", choices=PROMPT_VERSIONS, default="v1",
-                        help="v1 baseline; v2 progress; v2-mechanics preparation; v3 appliance; v4 recipe order; v5 tools; v6 containers; v7 repair; v8 open-priority; v9 priority plus targeted repair; v10 global recipe order; v11 meal finalization; v12 avoid known recipe rereads; v13 recipe precedence")
+    parser.add_argument("--actor-prompt", choices=(*PROMPT_VERSIONS, "legal-choice-v1"), default="v31",
+                        help="Actor policy; v31 remains the default")
     seeds = parser.add_mutually_exclusive_group()
     seeds.add_argument("--seed", type=int, default=0)
     seeds.add_argument("--seeds", type=int, nargs="+")
@@ -30,6 +29,9 @@ def main(argv=None, *, model=None) -> int:
     parser.add_argument("--memory-token-limit", type=int, default=256)
     parser.add_argument("--num-locations", type=int, default=3)
     parser.add_argument("--num-ingredients", type=int, default=2)
+    parser.add_argument("--num-distractor-items", type=int, default=0)
+    parser.add_argument("--include-doors", action=argparse.BooleanOptionalAction, default=False)
+    parser.add_argument("--limit-inventory-size", action=argparse.BooleanOptionalAction, default=False)
     parser.add_argument("--game-fold", choices=["train", "dev", "test"], default="train")
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--model-id", default="Qwen/Qwen3-4B-Instruct-2507")
@@ -42,16 +44,25 @@ def main(argv=None, *, model=None) -> int:
     parser.add_argument("--generation-seed", type=int, default=0)
     parser.add_argument("--local-files-only", action="store_true")
     parser.add_argument("--protocol-id", help="Immutable study identity; defaults to a generic backend/diagnostic identity")
-    parser.add_argument("--pilot", action="store_true", help="Enforce an immutable pilot manifest and attempt guards")
     parser.add_argument("--prepare-only", action="store_true", help="Validate and record the pilot without loading weights")
     if model is not None:
         defaults = asdict(model.config)
         defaults["model_revision"] = defaults.pop("revision")
-        parser.set_defaults(backend="transformers", pilot=True, **defaults)
+        parser.set_defaults(backend="transformers", **defaults)
     args = parser.parse_args(argv)
-    if args.prepare_only and not args.pilot:
-        parser.error("--prepare-only requires --pilot")
+    if args.actor_prompt == "legal-choice-v1":
+        if args.strategy != "full_history":
+            parser.error("legal-choice-v1 requires full_history")
+        if args.backend == "transformers" and (
+            args.model_id != "Qwen/Qwen3-4B-Instruct-2507" or
+            args.model_revision != "cdbee75f17c01a7cc42f958dc650907174af0554"
+        ):
+            parser.error("legal-choice-v1 requires the pinned Qwen model and revision")
     if args.backend == "transformers":
+        if args.output_dir is None:
+            parser.error("--output-dir is required for real inference")
+        if not args.protocol_id or not args.protocol_id.strip():
+            parser.error("--protocol-id is required and must be nonempty for real inference")
         if not args.model_revision:
             parser.error("--model-revision is required for real inference")
     elif args.model_revision:
@@ -68,6 +79,9 @@ def main(argv=None, *, model=None) -> int:
                                  memory_token_limit=args.memory_token_limit,
                                  game=CookingWorldConfig(num_locations=args.num_locations,
                                                          num_ingredients=args.num_ingredients,
+                                                         num_distractor_items=args.num_distractor_items,
+                                                         include_doors=args.include_doors,
+                                                         limit_inventory_size=args.limit_inventory_size,
                                                          game_fold=args.game_fold))
                    for seed in selected_seeds]
         if args.backend == "transformers":
@@ -87,7 +101,12 @@ def main(argv=None, *, model=None) -> int:
                       "artifacts/qwen-diagnostic-fixtures" if args.strategy == "full_history" else
                       "artifacts/s2-fixtures")
     output_dir = args.output_dir or Path(default_output)
-    actor = PromptedActor(full_history=args.strategy == "full_history", prompt_version=args.actor_prompt)
+    try:
+        actor = (LegalChoiceActor() if args.actor_prompt == "legal-choice-v1" else
+                 PromptedActor(context_mode=("full_history" if args.strategy == "full_history"
+                                             else "bounded_memory"), prompt_version=args.actor_prompt))
+    except ValueError as error:
+        parser.error(str(error))
     protocol_id = args.protocol_id if args.protocol_id is not None else (
         "generic-fixture-v1" if args.backend == "fake" else
         "generic-full-history-v1" if args.strategy == "full_history" else "generic-bounded-v1")
@@ -99,25 +118,24 @@ def main(argv=None, *, model=None) -> int:
             return FullHistoryMemory()
         if args.backend == "fake":
             return FakeMemory(args.strategy)
-        from .memory import HybridMemory, ProseMemory, StructuredMemory
-        return {"prose": ProseMemory, "structured": StructuredMemory,
-                "hybrid": HybridMemory}[args.strategy]()
+        from .memory import ProseMemory, StructuredMemory
+        return {"prose": ProseMemory, "structured": StructuredMemory}[args.strategy]()
 
     memory_metadata = selected_memory().metadata
-    if args.pilot:
-        from .pilot import prepare_pilot, runtime_environment
+    from .pilot import prepare_pilot, runtime_environment
+    if args.backend == "transformers":
         os.environ.update(runtime_environment())
-        try:
-            manifest = prepare_pilot(output_dir, configs[0], actor,
-                                     model_config if args.backend == "transformers" else None,
-                                     args.backend, selected_seeds,
-                                     memory_metadata=memory_metadata, protocol_id=protocol_id)
-        except (ValueError, KeyError, TypeError) as error:
-            parser.error(str(error))
-        if args.prepare_only:
-            print(f"Pilot prepared: {output_dir / 'pilot-manifest.json'}")
-            print(manifest["runtime"])
-            return 0
+    try:
+        manifest = prepare_pilot(output_dir, configs[0], actor,
+                                 model_config if args.backend == "transformers" else None,
+                                 args.backend, selected_seeds,
+                                 memory_metadata=memory_metadata, protocol_id=protocol_id)
+    except (ValueError, KeyError, TypeError) as error:
+        parser.error(str(error))
+    if args.prepare_only:
+        print(f"Pilot prepared: {output_dir / 'pilot-manifest.json'}")
+        print(manifest["runtime"])
+        return 0
     if args.backend == "transformers" and model is None:
         from .transformers_model import TransformersModel
         model = TransformersModel(model_config)

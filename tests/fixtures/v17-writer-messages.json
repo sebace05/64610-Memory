@@ -1,0 +1,232 @@
+[
+ {
+  "strategy": "prose",
+  "case": "initialization",
+  "previous": "",
+  "action": "[INITIAL_OBSERVATION]",
+  "observation": "You take the cheese.",
+  "context": {
+   "goal": "Prepare the meal.",
+   "budget_remaining": 80,
+   "recheck_cost": 2,
+   "memory_token_limit": 256
+  },
+  "outputs": [
+   "Grill the cheese."
+  ],
+  "calls": [
+   {
+    "purpose": "memory",
+    "messages": [
+     {
+      "role": "system",
+      "content": "Memory writer p1-memory-v17\nRewrite the bounded memory for the next task decision.\nUse only the previous bounded memory, selected action, new observation, and public\ntask context supplied in this request. Retain useful supported recipe, inventory,\nand progress information; update it from the latest evidence. Do not invent facts.\nChoose what to retain, compress, or omit to fit the stated memory-token allowance,\nwhich applies to the complete actor-visible rendering, including formatting.\nAn empty memory is permitted. There is no other persistent notebook. Return only\nthe replacement memory in the required format, without commentary or code fences.\n\nRequired format:\nReturn concise natural-language sentences or bullet notes. The notebook is rendered verbatim, including whitespace."
+     },
+     {
+      "role": "user",
+      "content": "{\"action\": \"[INITIAL_OBSERVATION]\", \"context\": {\"budget_remaining\": 80, \"goal\": \"Prepare the meal.\", \"memory_token_limit\": 256, \"recheck_cost\": 2}, \"observation\": \"You take the cheese.\", \"previous_memory\": \"\"}"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "strategy": "prose",
+  "case": "update",
+  "previous": "Recipe: grill cheese.",
+  "action": "take cheese",
+  "observation": "You take the cheese.",
+  "context": {
+   "goal": "Prepare the meal.",
+   "budget_remaining": 80,
+   "recheck_cost": 2,
+   "memory_token_limit": 256
+  },
+  "outputs": [
+   "Grill the cheese."
+  ],
+  "calls": [
+   {
+    "purpose": "memory",
+    "messages": [
+     {
+      "role": "system",
+      "content": "Memory writer p1-memory-v17\nRewrite the bounded memory for the next task decision.\nUse only the previous bounded memory, selected action, new observation, and public\ntask context supplied in this request. Retain useful supported recipe, inventory,\nand progress information; update it from the latest evidence. Do not invent facts.\nChoose what to retain, compress, or omit to fit the stated memory-token allowance,\nwhich applies to the complete actor-visible rendering, including formatting.\nAn empty memory is permitted. There is no other persistent notebook. Return only\nthe replacement memory in the required format, without commentary or code fences.\n\nRequired format:\nReturn concise natural-language sentences or bullet notes. The notebook is rendered verbatim, including whitespace."
+     },
+     {
+      "role": "user",
+      "content": "{\"action\": \"take cheese\", \"context\": {\"budget_remaining\": 80, \"goal\": \"Prepare the meal.\", \"memory_token_limit\": 256, \"recheck_cost\": 2}, \"observation\": \"You take the cheese.\", \"previous_memory\": \"Recipe: grill cheese.\"}"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "strategy": "prose",
+  "case": "repair",
+  "previous": "Recipe: grill cheese.",
+  "action": "take cheese",
+  "observation": "You take the cheese.",
+  "context": {
+   "goal": "Prepare the meal.",
+   "budget_remaining": 80,
+   "recheck_cost": 2,
+   "memory_token_limit": 256
+  },
+  "outputs": [
+   "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "Grill the cheese."
+  ],
+  "calls": [
+   {
+    "purpose": "memory",
+    "messages": [
+     {
+      "role": "system",
+      "content": "Memory writer p1-memory-v17\nRewrite the bounded memory for the next task decision.\nUse only the previous bounded memory, selected action, new observation, and public\ntask context supplied in this request. Retain useful supported recipe, inventory,\nand progress information; update it from the latest evidence. Do not invent facts.\nChoose what to retain, compress, or omit to fit the stated memory-token allowance,\nwhich applies to the complete actor-visible rendering, including formatting.\nAn empty memory is permitted. There is no other persistent notebook. Return only\nthe replacement memory in the required format, without commentary or code fences.\n\nRequired format:\nReturn concise natural-language sentences or bullet notes. The notebook is rendered verbatim, including whitespace."
+     },
+     {
+      "role": "user",
+      "content": "{\"action\": \"take cheese\", \"context\": {\"budget_remaining\": 80, \"goal\": \"Prepare the meal.\", \"memory_token_limit\": 256, \"recheck_cost\": 2}, \"observation\": \"You take the cheese.\", \"previous_memory\": \"Recipe: grill cheese.\"}"
+     }
+    ]
+   },
+   {
+    "purpose": "memory_repair",
+    "messages": [
+     {
+      "role": "system",
+      "content": "Memory writer p1-memory-v17\nRewrite the bounded memory for the next task decision.\nUse only the previous bounded memory, selected action, new observation, and public\ntask context supplied in this request. Retain useful supported recipe, inventory,\nand progress information; update it from the latest evidence. Do not invent facts.\nChoose what to retain, compress, or omit to fit the stated memory-token allowance,\nwhich applies to the complete actor-visible rendering, including formatting.\nAn empty memory is permitted. There is no other persistent notebook. Return only\nthe replacement memory in the required format, without commentary or code fences.\n\nRequired format:\nReturn concise natural-language sentences or bullet notes. The notebook is rendered verbatim, including whitespace."
+     },
+     {
+      "role": "user",
+      "content": "{\"action\": \"take cheese\", \"context\": {\"budget_remaining\": 80, \"goal\": \"Prepare the meal.\", \"memory_token_limit\": 256, \"recheck_cost\": 2}, \"observation\": \"You take the cheese.\", \"previous_memory\": \"Recipe: grill cheese.\"}"
+     },
+     {
+      "role": "assistant",
+      "content": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     },
+     {
+      "role": "user",
+      "content": "Candidate rejected: over_budget:300>256. Rewrite using the same supplied evidence and required format. The complete rendering must fit 256 tokens. Return only the replacement memory."
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "strategy": "structured",
+  "case": "initialization",
+  "previous": "{}",
+  "action": "[INITIAL_OBSERVATION]",
+  "observation": "You take the cheese.",
+  "context": {
+   "goal": "Prepare the meal.",
+   "budget_remaining": 80,
+   "recheck_cost": 2,
+   "memory_token_limit": 256
+  },
+  "outputs": [
+   "{\"note\":\"grill\"}"
+  ],
+  "calls": [
+   {
+    "purpose": "memory",
+    "messages": [
+     {
+      "role": "system",
+      "content": "Memory writer p1-memory-v17\nRewrite the bounded memory for the next task decision.\nUse only the previous bounded memory, selected action, new observation, and public\ntask context supplied in this request. Retain useful supported recipe, inventory,\nand progress information; update it from the latest evidence. Do not invent facts.\nChoose what to retain, compress, or omit to fit the stated memory-token allowance,\nwhich applies to the complete actor-visible rendering, including formatting.\nAn empty memory is permitted. There is no other persistent notebook. Return only\nthe replacement memory in the required format, without commentary or code fences.\n\nRequired format:\nReturn one JSON object. Choose your own keys and nested JSON values; there are no predefined task fields. Use unique keys and finite numbers; write exact quantities as strings if decimal-to-float formatting would change them. Emit compact JSON with sorted keys and literal Unicode. Rendering uses that canonical form, including all braces, quotes, keys, and punctuation."
+     },
+     {
+      "role": "user",
+      "content": "{\"action\": \"[INITIAL_OBSERVATION]\", \"context\": {\"budget_remaining\": 80, \"goal\": \"Prepare the meal.\", \"memory_token_limit\": 256, \"recheck_cost\": 2}, \"observation\": \"You take the cheese.\", \"previous_memory\": \"{}\"}"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "strategy": "structured",
+  "case": "update",
+  "previous": "{\"recipe\":\"grill cheese\"}",
+  "action": "take cheese",
+  "observation": "You take the cheese.",
+  "context": {
+   "goal": "Prepare the meal.",
+   "budget_remaining": 80,
+   "recheck_cost": 2,
+   "memory_token_limit": 256
+  },
+  "outputs": [
+   "{\"note\":\"grill\"}"
+  ],
+  "calls": [
+   {
+    "purpose": "memory",
+    "messages": [
+     {
+      "role": "system",
+      "content": "Memory writer p1-memory-v17\nRewrite the bounded memory for the next task decision.\nUse only the previous bounded memory, selected action, new observation, and public\ntask context supplied in this request. Retain useful supported recipe, inventory,\nand progress information; update it from the latest evidence. Do not invent facts.\nChoose what to retain, compress, or omit to fit the stated memory-token allowance,\nwhich applies to the complete actor-visible rendering, including formatting.\nAn empty memory is permitted. There is no other persistent notebook. Return only\nthe replacement memory in the required format, without commentary or code fences.\n\nRequired format:\nReturn one JSON object. Choose your own keys and nested JSON values; there are no predefined task fields. Use unique keys and finite numbers; write exact quantities as strings if decimal-to-float formatting would change them. Emit compact JSON with sorted keys and literal Unicode. Rendering uses that canonical form, including all braces, quotes, keys, and punctuation."
+     },
+     {
+      "role": "user",
+      "content": "{\"action\": \"take cheese\", \"context\": {\"budget_remaining\": 80, \"goal\": \"Prepare the meal.\", \"memory_token_limit\": 256, \"recheck_cost\": 2}, \"observation\": \"You take the cheese.\", \"previous_memory\": \"{\\\"recipe\\\":\\\"grill cheese\\\"}\"}"
+     }
+    ]
+   }
+  ]
+ },
+ {
+  "strategy": "structured",
+  "case": "repair",
+  "previous": "{\"recipe\":\"grill cheese\"}",
+  "action": "take cheese",
+  "observation": "You take the cheese.",
+  "context": {
+   "goal": "Prepare the meal.",
+   "budget_remaining": 80,
+   "recheck_cost": 2,
+   "memory_token_limit": 256
+  },
+  "outputs": [
+   "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+   "{\"note\":\"grill\"}"
+  ],
+  "calls": [
+   {
+    "purpose": "memory",
+    "messages": [
+     {
+      "role": "system",
+      "content": "Memory writer p1-memory-v17\nRewrite the bounded memory for the next task decision.\nUse only the previous bounded memory, selected action, new observation, and public\ntask context supplied in this request. Retain useful supported recipe, inventory,\nand progress information; update it from the latest evidence. Do not invent facts.\nChoose what to retain, compress, or omit to fit the stated memory-token allowance,\nwhich applies to the complete actor-visible rendering, including formatting.\nAn empty memory is permitted. There is no other persistent notebook. Return only\nthe replacement memory in the required format, without commentary or code fences.\n\nRequired format:\nReturn one JSON object. Choose your own keys and nested JSON values; there are no predefined task fields. Use unique keys and finite numbers; write exact quantities as strings if decimal-to-float formatting would change them. Emit compact JSON with sorted keys and literal Unicode. Rendering uses that canonical form, including all braces, quotes, keys, and punctuation."
+     },
+     {
+      "role": "user",
+      "content": "{\"action\": \"take cheese\", \"context\": {\"budget_remaining\": 80, \"goal\": \"Prepare the meal.\", \"memory_token_limit\": 256, \"recheck_cost\": 2}, \"observation\": \"You take the cheese.\", \"previous_memory\": \"{\\\"recipe\\\":\\\"grill cheese\\\"}\"}"
+     }
+    ]
+   },
+   {
+    "purpose": "memory_repair",
+    "messages": [
+     {
+      "role": "system",
+      "content": "Memory writer p1-memory-v17\nRewrite the bounded memory for the next task decision.\nUse only the previous bounded memory, selected action, new observation, and public\ntask context supplied in this request. Retain useful supported recipe, inventory,\nand progress information; update it from the latest evidence. Do not invent facts.\nChoose what to retain, compress, or omit to fit the stated memory-token allowance,\nwhich applies to the complete actor-visible rendering, including formatting.\nAn empty memory is permitted. There is no other persistent notebook. Return only\nthe replacement memory in the required format, without commentary or code fences.\n\nRequired format:\nReturn one JSON object. Choose your own keys and nested JSON values; there are no predefined task fields. Use unique keys and finite numbers; write exact quantities as strings if decimal-to-float formatting would change them. Emit compact JSON with sorted keys and literal Unicode. Rendering uses that canonical form, including all braces, quotes, keys, and punctuation."
+     },
+     {
+      "role": "user",
+      "content": "{\"action\": \"take cheese\", \"context\": {\"budget_remaining\": 80, \"goal\": \"Prepare the meal.\", \"memory_token_limit\": 256, \"recheck_cost\": 2}, \"observation\": \"You take the cheese.\", \"previous_memory\": \"{\\\"recipe\\\":\\\"grill cheese\\\"}\"}"
+     },
+     {
+      "role": "assistant",
+      "content": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+     },
+     {
+      "role": "user",
+      "content": "Candidate rejected: malformed_json. Rewrite using the same supplied evidence and required format. The complete rendering must fit 256 tokens. Return only the replacement memory."
+     }
+    ]
+   }
+  ]
+ }
+]

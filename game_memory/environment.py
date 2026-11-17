@@ -2,12 +2,32 @@
 
 from dataclasses import asdict
 from importlib.metadata import version
+import subprocess
 
 from .contracts import AgentView, CookingWorldConfig, Transition
 
 
 # Both legal engine commands disclose the same full recipe (verified in v1.1.0).
 RECIPE_ACTIONS = frozenset({"read cookbook", "examine cookbook"})
+
+
+def check_java_startup() -> None:
+    """Check the same PATH Java/options used by Py4J before its port protocol."""
+    try:
+        result = subprocess.run(["java", "-version"], capture_output=True, text=True,
+                                timeout=10)
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError("Cannot start Java for CookingWorld. Put an isolated Java 17 "
+                           "runtime's bin directory first on PATH; global configuration "
+                           "need not change.") from error
+    if result.returncode or result.stdout.strip():
+        raise RuntimeError(
+            "Java initialization is incompatible before Py4J startup (exit "
+            f"{result.returncode}). The experiment requires Java 17 and preserves its "
+            "JAVA_TOOL_OPTIONS logging flags. JVM diagnostics on stdout would corrupt the "
+            "Py4J numeric-port protocol; this Java build must also support the logging tags. "
+            "Put a compatible isolated Java 17 bin directory "
+            "first on PATH, then retry. JVM output: " + result.stdout + result.stderr)
 
 
 def normalize_action(action: str) -> str:
@@ -93,6 +113,7 @@ class CookingWorldEnvironment:
         if not isinstance(config, CookingWorldConfig):
             raise TypeError("game_config must be a CookingWorldConfig")
         if self._backend is None:
+            check_java_startup()
             from textworld_express import TextWorldExpressEnv
 
             # Our positive action costs exhaust the wrapper budget before this

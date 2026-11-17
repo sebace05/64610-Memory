@@ -1,7 +1,6 @@
-"""Unbounded visible observation/action archive for capability diagnostics.
+"""Full public action/observation archive.
 
-This is not one of the three experimental memory strategies. It cannot inspect
-privileged simulator state or log files, and never calls the memory writer.
+The archive never inspects privileged state or logs, or calls a memory writer.
 """
 
 import json

@@ -1,14 +1,9 @@
-"""Pilot manifests, launch guards, and durable subprocess logs."""
+"""Immutable pilot manifests and runtime environment."""
 
-import argparse
 from dataclasses import asdict
 import json
 import os
 from pathlib import Path
-import subprocess
-import sys
-import traceback
-import uuid
 
 from .runner import source_metadata
 
@@ -76,53 +71,3 @@ def prepare_pilot(directory: Path, episode, actor, model, backend: str, seeds: l
         if result["config"]["seed"] in seeds:
             raise ValueError("Requested seed already has a result; preserve it and use a new pilot directory")
     return manifest
-
-
-def run_logged(command: list[str], log_path: Path, environment: dict) -> None:
-    """Keep child output even if initialization fails; preserve its exit status."""
-    log_path.parent.mkdir(parents=True, exist_ok=True)
-    with log_path.open("x") as stream:
-        stream.write(json.dumps({"command": command}) + "\n\n")
-        stream.flush()
-        print(f"Writing output to: {log_path}", flush=True)
-        try:
-            result = subprocess.run(command, stdout=stream, stderr=subprocess.STDOUT,
-                                    env=environment, text=True)
-        except OSError:
-            traceback.print_exc(file=stream)
-            raise
-        stream.write(f"\nExit status: {result.returncode}\n")
-    print(log_path.read_text())
-    print(f"Saved log: {log_path}")
-    result.check_returncode()
-
-
-def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, required=True)
-    parser.add_argument("--check", action="store_true", help="Check dependencies, Java, and tests without loading weights")
-    args, forwarded = parser.parse_known_args()
-    if args.check and forwarded:
-        parser.error("--check does not accept episode arguments")
-    environment = runtime_environment()
-    attempt = uuid.uuid4().hex
-    try:
-        if args.check:
-            logs = args.output_dir / f"checks-{attempt}"
-            for command, name in [([sys.executable, "-m", "pip", "check"], "pip-check"),
-                                  (["java", "-version"], "java-version"),
-                                  ([sys.executable, "-m", "pytest", "-q", "--tb=short"], "pytest")]:
-                run_logged(command, logs / f"{name}.log", environment)
-            (logs / "pip-freeze.txt").write_text(subprocess.check_output(
-                [sys.executable, "-m", "pip", "freeze"], env=environment, text=True))
-        else:
-            run_logged([sys.executable, "-m", "game_memory.run_episode", *forwarded,
-                        "--pilot", "--output-dir", str(args.output_dir)],
-                       args.output_dir / f"launch-{attempt}.log", environment)
-    except subprocess.CalledProcessError as error:
-        return error.returncode if error.returncode >= 0 else 128 - error.returncode
-    return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main())

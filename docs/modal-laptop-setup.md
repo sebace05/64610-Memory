@@ -1,5 +1,13 @@
 # Laptop Codex + Modal setup
 
+**Laptop implementation update, November 16:** the launcher now exists at
+`scripts/modal_calibration.py`. Remote CPU preflight passed 389 tests with zero
+skips, and the first authorized A10 pilot succeeded in 11 actions. Follow
+[the implemented launcher workflow](modal-calibration.md) for current commands,
+saved run references and evidence retrieval. On this laptop, use the working
+`python3`/Modal installation; the local `.venv` is not required. The original
+setup and implementation-assignment instructions below remain as handoff context.
+
 Prepared November 16, 2026. The intended arrangement is:
 
 `Codex on laptop → Modal client credentials → remote Linux GPU job → persistent results → Codex review`

@@ -124,7 +124,7 @@ def test_missing_cuda_fails_before_attempting_model_download(monkeypatch):
         TransformersModel(TransformersConfig(revision="0" * 40))
 
 
-@pytest.mark.parametrize("prompt_version", ["v1", "v2"])
+@pytest.mark.parametrize("prompt_version", ["v31"])
 def test_actual_adapter_runs_through_simulator_and_checkpoint_audit(tiny_adapter, tmp_path, prompt_version):
     # This is end-to-end inference with random local weights, not a production
     # Qwen capability test. A valid game loss must still have auditable usage.
@@ -148,8 +148,8 @@ def test_actual_adapter_runs_through_simulator_and_checkpoint_audit(tiny_adapter
     assert report["logging_checks_passed"] and report["real_infrastructure_errors"] == 0
 
 
-@pytest.mark.parametrize("strategy", ["prose", "structured", "hybrid"])
-@pytest.mark.parametrize("prompt_version", ["v1", "v2"])
+@pytest.mark.parametrize("strategy", ["prose", "structured"])
+@pytest.mark.parametrize("prompt_version", ["v31"])
 def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_adapter, tmp_path, strategy, prompt_version):
     # Exercise the seam between PR #1 and the inference adapter with random
     # local weights. This does not evaluate production Qwen memory quality.
@@ -157,10 +157,10 @@ def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_ada
     import json
     from game_memory.actor import PromptedActor
     from game_memory.environment import CookingWorldEnvironment
-    from game_memory.memory import HybridMemory, ProseMemory, StructuredMemory
+    from game_memory.memory import ProseMemory, StructuredMemory
     from game_memory.runner import EpisodeConfig, run_episode
 
-    factories = {"prose": ProseMemory, "structured": StructuredMemory, "hybrid": HybridMemory}
+    factories = {"prose": ProseMemory, "structured": StructuredMemory}
     adapter = TransformersModel(replace(tiny_adapter.config, context_limit=4096))
     memory = factories[strategy]()
     with CookingWorldEnvironment(action_budget=1) as env:
@@ -177,7 +177,7 @@ def test_p1_strategies_use_actual_adapter_tokenizer_and_repair_purposes(tiny_ada
     assert result["output_tokens"] == sum(event["output_tokens"] for event in replies)
 
 
-@pytest.mark.parametrize("strategy", ["prose", "structured", "hybrid"])
+@pytest.mark.parametrize("strategy", ["prose", "structured"])
 def test_real_inference_cli_runs_bounded_memory_and_audits_isolation(tiny_adapter, tmp_path, strategy):
     from dataclasses import replace
     import json
@@ -187,7 +187,7 @@ def test_real_inference_cli_runs_bounded_memory_and_audits_isolation(tiny_adapte
     adapter = TransformersModel(replace(tiny_adapter.config, context_limit=8192))
     output = tmp_path / strategy
     assert main([
-        "--backend", "transformers", "--strategy", strategy, "--actor-prompt", "v3",
+        "--protocol-id", "software-fixture", "--backend", "transformers", "--strategy", strategy, "--actor-prompt", "v31",
         "--model-revision", adapter.config.revision, "--action-budget", "1",
         "--num-locations", "1", "--num-ingredients", "1", "--output-dir", str(output),
     ], model=adapter) == 0
@@ -197,7 +197,7 @@ def test_real_inference_cli_runs_bounded_memory_and_audits_isolation(tiny_adapte
     manifest = json.loads((output / "pilot-manifest.json").read_text())
     assert manifest["memory"] == result["components"]["memory"]
     assert manifest["source"] == result["source"]
-    assert manifest["protocol_id"] == result["protocol_id"] == "generic-bounded-v1"
+    assert manifest["protocol_id"] == result["protocol_id"] == "software-fixture"
     assert result["usage_by_purpose"]["memory"]["calls"] == 1
     report = summarize(output)
     assert report["kind"] == "bounded_memory_checkpoint_report"
@@ -211,7 +211,7 @@ def test_real_test_fold_episode_is_labeled_evaluation_and_audited(tiny_adapter, 
     from game_memory.summarize_diagnostics import summarize
 
     adapter = TransformersModel(replace(tiny_adapter.config, context_limit=8192))
-    assert main(["--strategy", "hybrid", "--actor-prompt", "v29",
+    assert main(["--protocol-id", "software-fixture", "--strategy", "structured", "--actor-prompt", "v31",
                  "--game-fold", "test", "--action-budget", "1",
                  "--num-locations", "1", "--num-ingredients", "1",
                  "--output-dir", str(tmp_path)], model=adapter) == 0
@@ -220,41 +220,115 @@ def test_real_test_fold_episode_is_labeled_evaluation_and_audited(tiny_adapter, 
     assert summarize(tmp_path)["logging_checks_passed"]
 
 
-def test_colab_session_reuses_model_but_starts_fresh_auditable_games(tiny_adapter, tmp_path):
+def test_legal_choice_one_forward_restricted_argmax_and_exact_hash(tiny_adapter, monkeypatch):
+    import hashlib
     import json
-    from dataclasses import asdict, replace
-    from pathlib import Path
-    import sys
-    from game_memory.colab_session import ColabSession
-    from game_memory.summarize_diagnostics import summarize
+    import torch
+    from types import SimpleNamespace
+    from game_memory.transformers_model import validate_choice_tokens
 
-    # The byte-level fixture expands the full policy and repair beyond 4096;
-    # exercise the same 8192-token allowance as the production checkpoint.
-    settings = asdict(replace(tiny_adapter.config, context_limit=8192))
-    session = ColabSession(sys.executable, Path(__file__).resolve().parents[1], settings,
-                           tmp_path / "session.log")
-    pid = session.process.pid
-    first = tmp_path / "first"
-    second = tmp_path / "second"
-    arguments = ["--strategy", "full_history", "--actor-prompt", "v3",
-                 "--action-budget", "1", "--num-locations", "1", "--num-ingredients", "1"]
+    messages = (Message('user', '  café ☃\n  '),)
+    prompt = tiny_adapter._tokenizer.apply_chat_template(
+        [{'role': m.role, 'content': m.content} for m in messages],
+        tokenize=False, add_generation_prompt=True)
+    vocab = tiny_adapter._model.get_output_embeddings().weight.shape[0]
+    ids = validate_choice_tokens(tiny_adapter._tokenizer, prompt, ('A', 'B'), vocab)
+    seen, forwards = [], []
+    original = tiny_adapter._tokenizer.__class__.__call__
+    def capture(tokenizer, text, **kwargs):
+        if tokenizer is tiny_adapter._tokenizer:
+            seen.append((text, kwargs))
+        return original(tokenizer, text, **kwargs)
+    monkeypatch.setattr(tiny_adapter._tokenizer.__class__, '__call__', capture)
+    def forward(**kwargs):
+        assert torch.is_inference_mode_enabled() is True
+        assert torch.is_grad_enabled() is False
+        forwards.append(kwargs)
+        logits = torch.zeros((1, kwargs['input_ids'].shape[1], vocab))
+        noncandidate = next(i for i in range(vocab) if i not in ids)
+        logits[0, -1, noncandidate] = 1000
+        logits[0, -1, ids[0]] = 1
+        logits[0, -1, ids[1]] = 2
+        return SimpleNamespace(logits=logits)
+    def forbidden(*args, **kwargs):
+        pytest.fail('score_choices must never call generate')
+    monkeypatch.setattr(tiny_adapter._model, 'forward', forward)
+    monkeypatch.setattr(tiny_adapter._model, 'generate', forbidden)
+    result = tiny_adapter.score_choices(messages, labels=('A', 'B'))
+    assert result.text == 'B' and result.output_tokens == 1
+    assert len(forwards) == 1 and forwards[0]['use_cache'] is False
+    assert seen == [(prompt, {'add_special_tokens': False, 'return_tensors': 'pt',
+                             'return_token_type_ids': False, 'truncation': False})]
+    m = result.metadata
+    assert m['special_token_ids'] == sorted(set(tiny_adapter._tokenizer.all_special_ids))
+    assert set(ids).isdisjoint(m['special_token_ids'])
+    assert m['candidate_logits'] == [1.0, 2.0]
+    assert sum(m['conditional_probabilities']) == pytest.approx(1)
+    assert m['rendered_prompt_sha256'] == hashlib.sha256(prompt.encode()).hexdigest()
+    assert m['rendered_prompt_sha256'] != hashlib.sha256(json.dumps(
+        [{'role': x.role, 'content': x.content} for x in messages]).encode()).hexdigest()
+    assert m['rendered_prompt_sha256'] != hashlib.sha256(messages[0].content.encode()).hexdigest()
+    assert m['prompt_hash_evidence'] == 'actual_rendered_prompt'
+    assert prompt.endswith('assistant\n') and '  café ☃\n  ' in prompt
+
+
+@pytest.mark.parametrize('failure', ['missing', 'shape', 'nan', 'infinity', 'tie'])
+def test_legal_choice_forward_scores_fail_visibly_or_tie_first(tiny_adapter, monkeypatch, failure):
+    import torch
+    from types import SimpleNamespace
+    def forward(**kwargs):
+        if failure == 'missing': return SimpleNamespace()
+        vocab = tiny_adapter._model.get_output_embeddings().weight.shape[0]
+        shape = (1, kwargs['input_ids'].shape[1], vocab)
+        logits = torch.zeros(shape if failure != 'shape' else (1, vocab))
+        if failure in {'nan', 'infinity'}:
+            logits[:] = float('nan' if failure == 'nan' else 'inf')
+        return SimpleNamespace(logits=logits)
+    monkeypatch.setattr(tiny_adapter._model, 'forward', forward)
+    if failure == 'tie':
+        result = tiny_adapter.score_choices((Message('user', 'choose'),), labels=('B', 'A'))
+        assert result.text == 'B' and result.metadata['conditional_probabilities'] == [0.5, 0.5]
+    else:
+        with pytest.raises(ValueError):
+            tiny_adapter.score_choices((Message('user', 'choose'),), labels=('A', 'B'))
+
+
+def test_legal_choice_actual_tiny_forward_and_context_guard(tiny_adapter, monkeypatch):
+    response = tiny_adapter.score_choices((Message('user', 'choose'),), labels=('A', 'B'))
+    assert response.input_tokens > 0 and response.elapsed_seconds > 0
+    assert response.metadata['scoring_evidence'] == 'actual_model_forward'
+    def forbidden(**kwargs):
+        pytest.fail('overflow reached inference')
+    monkeypatch.setattr(tiny_adapter._model, 'forward', forbidden)
+    with pytest.raises(ValueError, match='prompt was not truncated'):
+        tiny_adapter.score_choices((Message('user', 'x '*200),), labels=('A', 'B'))
+
+
+def test_cached_qwen_tokenizer_only_all_52_legal_labels():
+    # Never loads weights; missing cache/dependencies is unexecuted verification.
+    transformers = pytest.importorskip('transformers', reason='actual cached-tokenizer verification unexecuted: dependency unavailable')
+    from game_memory.choice_actor import LegalChoiceActor
+    from game_memory.contracts import AgentView
+    from game_memory.integration_fixtures import FakeModel
+    from game_memory.transformers_model import validate_choice_tokens
     try:
-        for directory, seed in [(first, "0"), (second, "1")]:
-            session.run([*arguments, "--output-dir", str(directory), "--seed", seed])
-            assert session.process.pid == pid and session.process.poll() is None
-            assert summarize(directory)["logging_checks_passed"]
-            events = [json.loads(s) for s in next(directory.glob("*/events.jsonl")).read_text().splitlines()]
-            update = next(e for e in events if e["event"] == "memory_update")
-            assert update["previous_memory"] == "[]"
-            assert len(json.loads(update["memory"])) == 1
-        original = next(first.glob("*/result.json")).read_bytes()
-        with pytest.raises(RuntimeError, match="status 2"):
-            session.run([*arguments, "--output-dir", str(first), "--seed", "0"])
-        assert next(first.glob("*/result.json")).read_bytes() == original
-        with pytest.raises(RuntimeError, match="status 2"):
-            session.run([*arguments, "--dtype", "float16", "--output-dir", str(tmp_path / "changed")])
-        assert not (tmp_path / "changed").exists()
-    finally:
-        session.close()
-    assert session.process.poll() == 0
-    assert (tmp_path / "session.log").read_text().count('"ready": true') == 1
+        tokenizer = transformers.AutoTokenizer.from_pretrained(
+            'Qwen/Qwen3-4B-Instruct-2507', revision='cdbee75f17c01a7cc42f958dc650907174af0554',
+            local_files_only=True, trust_remote_code=False)
+    except OSError:
+        pytest.skip('actual cached-tokenizer verification unexecuted: pinned tokenizer cache unavailable')
+    class Capture(FakeModel):
+        def score_choices(self, messages, *, labels):
+            self.messages, self.labels = messages, labels
+            return super().score_choices(messages, labels=labels)
+    capture = Capture()
+    LegalChoiceActor().choose_action(AgentView('Room café', 'Prepare and eat meal',
+        tuple(f'public action {i}' for i in range(52)), 80, 2),
+        '[{"action": "[INITIAL_OBSERVATION]", "observation": "Recipe ☃"}]', capture)
+    prompt = tokenizer.apply_chat_template([{'role': m.role, 'content': m.content} for m in capture.messages],
+                                           tokenize=False, add_generation_prompt=True)
+    config = transformers.AutoConfig.from_pretrained(
+        'Qwen/Qwen3-4B-Instruct-2507', revision='cdbee75f17c01a7cc42f958dc650907174af0554',
+        local_files_only=True, trust_remote_code=False)
+    ids = validate_choice_tokens(tokenizer, prompt, capture.labels, config.vocab_size)
+    assert len(ids) == len(set(ids)) == 52

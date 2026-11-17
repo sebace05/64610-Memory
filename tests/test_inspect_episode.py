@@ -1,17 +1,16 @@
 """Independent hand-calculated trace metrics, plus read-only CLI behavior."""
 
-import csv
 import json
 
 import pytest
 
-from game_memory.inspect_episode import analyze_events, main
+from game_memory.summarize_diagnostics import analyze_events
 
 
 def sample():
     allowed = ["take water", "put water in counter", "move east", "examine cookbook"]
     events = [{"event": "episode_start", "episode_id": "synthetic", "kind": "integration_fixture",
-               "components": {"actor": {"prompt_version": "full-history-v2"}}},
+               "components": {"actor": {"prompt_version": "full-history-v31"}}},
               {"event": "reset", "view": {"allowed_actions": allowed}}]
     # Cost: 1 + 1 + 2 + 2 + 2 + 0 = 8, leaving one of nine units.
     turns = [
@@ -66,30 +65,3 @@ def test_missing_public_view_does_not_invent_action_availability():
         {"event": "model_response", "step": 1, "purpose": "action", "text": '{"action":"move east"}'}])
     assert report["behavior"]["action_output_validation"]["action"] == {"availability_unknown": 1}
     assert report["behavior"]["maximum_observed_score"] is None
-
-
-def test_inspector_preserves_raw_trace_and_round_trips_csv(tmp_path, monkeypatch, capsys):
-    trace, table = tmp_path / "events.jsonl", tmp_path / "actions.csv"
-    raw = "".join(json.dumps(e) + "\n" for e in sample())
-    trace.write_text(raw)
-    monkeypatch.setattr("sys.argv", ["inspect_episode", str(trace), "--csv", str(table),
-                                    "--step", "3", "--show-prompts"])
-    assert main() == 0
-    report = json.loads(capsys.readouterr().out)
-    assert [t["step"] for t in report["turns"]] == [3]
-    assert len(report["requests"]) == 2
-    assert trace.read_text() == raw
-    with table.open(newline="") as stream:
-        rows = list(csv.DictReader(stream))
-    assert len(rows) == 6
-    assert rows[0]["observation"] == 'You take water.\n"Quoted"'
-
-
-def test_csv_argument_cannot_overwrite_jsonl(tmp_path, monkeypatch):
-    trace = tmp_path / "events.jsonl"
-    trace.write_text("original")
-    monkeypatch.setattr("sys.argv", ["inspect_episode", str(trace), "--csv", str(trace)])
-    with pytest.raises(SystemExit) as error:
-        main()
-    assert error.value.code == 2
-    assert trace.read_text() == "original"

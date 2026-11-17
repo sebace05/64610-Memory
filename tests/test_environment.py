@@ -210,3 +210,49 @@ def test_configuration_and_lifecycle_errors_are_explicit(env):
     env.close()
     with pytest.raises(RuntimeError, match="closed"):
         env.reset(0)
+
+
+@pytest.mark.parametrize("failure", ["flags", "missing", "timeout"])
+def test_java_initialization_fails_actionably_before_py4j(monkeypatch, failure):
+    import subprocess
+    from game_memory.environment import check_java_startup
+
+    def probe(command, **kwargs):
+        assert command == ["java", "-version"] and kwargs["timeout"] == 10
+        if failure == "missing":
+            raise FileNotFoundError("java")
+        if failure == "timeout":
+            raise subprocess.TimeoutExpired(command, 10)
+        return subprocess.CompletedProcess(command, 1, "", "Unrecognized option: -Xlog")
+
+    monkeypatch.setattr("game_memory.environment.subprocess.run", probe)
+    with pytest.raises(RuntimeError, match="isolated Java 17") as error:
+        check_java_startup()
+    assert "Py4J" not in str(error.value) or "before Py4J" in str(error.value)
+    if failure == "flags":
+        assert "Unrecognized option" in str(error.value) and "exit 1" in str(error.value)
+
+
+def test_java_probe_preserves_environment_options(monkeypatch):
+    import os
+    import subprocess
+    from game_memory.environment import check_java_startup
+
+    monkeypatch.setenv("JAVA_TOOL_OPTIONS", "-Xmx128m -Xlog:os+container=off:stdout")
+    def probe(command, **kwargs):
+        assert "env" not in kwargs  # Inherit exact flags; no silent removal.
+        return subprocess.CompletedProcess(command, 0, "", 'openjdk version "17.0.9"')
+    monkeypatch.setattr("game_memory.environment.subprocess.run", probe)
+    check_java_startup()
+    assert os.environ["JAVA_TOOL_OPTIONS"] == "-Xmx128m -Xlog:os+container=off:stdout"
+
+
+def test_java_stdout_diagnostics_are_rejected_even_with_zero_exit(monkeypatch):
+    import subprocess
+    from game_memory.environment import check_java_startup
+
+    monkeypatch.setattr("game_memory.environment.subprocess.run", lambda *args, **kwargs:
+                        subprocess.CompletedProcess(args, 0, "No tag set matches selection: os+container", ""))
+    with pytest.raises(RuntimeError, match="numeric-port protocol") as error:
+        check_java_startup()
+    assert "No tag set matches" in str(error.value)

@@ -121,6 +121,59 @@ class TransformersModel:
     def count_tokens(self, text: str) -> int:
         return len(self._tokenizer.encode(text, add_special_tokens=False))
 
+    def score_choices(self, messages: Sequence[Message], *, labels: Sequence[str]) -> Generation:
+        import hashlib
+        import torch
+
+        labels = tuple(labels)
+        prompt = self._tokenizer.apply_chat_template(
+            [{"role": m.role, "content": m.content} for m in messages],
+            tokenize=False, add_generation_prompt=True,
+        )
+        vocab_size = self._model.get_output_embeddings().weight.shape[0]
+        ids = validate_choice_tokens(self._tokenizer, prompt, labels, vocab_size)
+        inputs = self._tokenizer(prompt, add_special_tokens=False, return_tensors="pt",
+                                 return_token_type_ids=False, truncation=False)
+        shape = inputs["input_ids"].shape
+        if len(shape) != 2 or shape[0] != 1 or shape[1] < 1:
+            raise ValueError("invalid choice input shape")
+        input_tokens = shape[1]
+        if inputs["input_ids"][0].tolist() != self._tokenizer.encode(prompt, add_special_tokens=False):
+            raise ValueError("choice tokenization disagrees with validated prompt")
+        if input_tokens + 1 > self._context_limit:
+            raise ValueError(f"context overflow: {input_tokens} input + 1 reserved output "
+                             f"> {self._context_limit}; prompt was not truncated")
+        inputs = inputs.to(self.config.device)
+        if self.config.device == "cuda":
+            torch.cuda.reset_peak_memory_stats()
+        self._synchronize()
+        started = time.perf_counter()
+        with torch.inference_mode():
+            output = self._model(**inputs, use_cache=False)
+        self._synchronize()
+        elapsed = time.perf_counter() - started
+        scores = getattr(output, "logits", None)
+        if scores is None or tuple(scores.shape) != (1, input_tokens, vocab_size):
+            raise ValueError("invalid or missing choice logits shape")
+        logits = scores[0, -1, list(ids)].float().cpu().tolist()
+        selected, probabilities = restricted_choice(logits, labels=labels, token_ids=ids)
+        details = {
+            "inference_mode": "legal_label_argmax_v1", "generation_called": False,
+            "labels": list(labels), "label_token_ids": list(ids),
+            "special_token_ids": sorted(set(self._tokenizer.all_special_ids)),
+            "candidate_logits": logits, "conditional_probabilities": probabilities,
+            "selected_label": labels[selected], "selected_token_id": ids[selected],
+            "selection_rule": "argmax", "tie_break": "first_in_supplied_order",
+            "finish_reason": "choice", "decision_token_count": 1,
+            "rendered_prompt_sha256": hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+            "prompt_hash_evidence": "actual_rendered_prompt",
+            "scoring_evidence": "actual_model_forward", "output_vocab_size": vocab_size,
+            "latency_scope": "synchronized_forward_excludes_tokenization_validation_transfer_cpu_selection",
+            "peak_cuda_allocated_bytes": (torch.cuda.max_memory_allocated()
+                                          if self.config.device == "cuda" else None),
+        }
+        return Generation(labels[selected], input_tokens, 1, elapsed, details)
+
     def generate(self, messages: Sequence[Message], *, purpose: str) -> Generation:
         import torch
         from transformers import GenerationConfig
@@ -168,3 +221,42 @@ class TransformersModel:
         }
         return Generation(self._tokenizer.decode(generated, skip_special_tokens=True),
                           input_tokens, len(generated), elapsed, details)
+
+
+def validate_choice_tokens(tokenizer, prompt: str, labels: Sequence[str], vocab_size: int):
+    """Validate actual encoding and full rendered-prefix stability before inference."""
+    labels = tuple(labels)
+    if not labels or any(not isinstance(label, str) or not label for label in labels):
+        raise ValueError("nonempty choice labels required")
+    prefix = tokenizer.encode(prompt, add_special_tokens=False)
+    ids = []
+    for label in labels:
+        encoded = tokenizer.encode(label, add_special_tokens=False)
+        if len(encoded) != 1:
+            raise ValueError("choice label must encode as exactly one token")
+        token = encoded[0]
+        if type(token) is not int or not 0 <= token < vocab_size:
+            raise ValueError("choice token outside output vocabulary")
+        if token in tokenizer.all_special_ids:
+            raise ValueError("choice token is special")
+        if token in ids:
+            raise ValueError("choice token IDs must be distinct")
+        if tokenizer.encode(prompt + label, add_special_tokens=False) != prefix + [token]:
+            raise ValueError("choice label is not prefix-stable")
+        ids.append(token)
+    return tuple(ids)
+
+
+def restricted_choice(logits, *, labels, token_ids):
+    """Pure finite-score arithmetic; ties retain the first supplied candidate."""
+    import math
+
+    if not labels or not (len(labels) == len(token_ids) == len(logits)):
+        raise ValueError("missing or misaligned choice scores")
+    if any(type(x) not in (int, float) or not math.isfinite(x) for x in logits):
+        raise ValueError("non-finite or missing candidate logit")
+    largest = max(logits)
+    weights = [math.exp(x - largest) for x in logits]
+    total = sum(weights)
+    selected = logits.index(largest)
+    return selected, [w / total for w in weights]

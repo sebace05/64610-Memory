@@ -134,16 +134,10 @@ class _BoundedMemory:
     def render(self, memory: str) -> str:
         return self._prepare(memory)[1]
 
-    def update(self, previous_memory: str, action: str, observation: str,
-               context: MemoryContext, model: Model) -> MemoryUpdate:
-        limit = context.memory_token_limit
-        if type(limit) is not int or limit < 1:
-            raise ValueError("memory_token_limit must be a positive integer")
-        # The caller supplies a valid predecessor (empty() on initialization).
-        # Do not conceal an invalid predecessor or an unusably small allowance.
-        previous_rendered = self.render(previous_memory)
-        _within_budget(previous_rendered, limit, model)
-        messages = (
+    def _messages(self, previous_rendered: str, action: str, observation: str,
+                  context: MemoryContext, limit: int) -> tuple[Message, ...]:
+        """Primary writer request; versioned subclasses may override (memory-probe-v1)."""
+        return (
             Message("system", f"Memory writer {PROMPT_VERSION}\n{_SHARED_INSTRUCTIONS}"
                     f"\n\nRequired format:\n{self.format_instructions}"),
             Message("user", json.dumps({
@@ -158,6 +152,17 @@ class _BoundedMemory:
                 },
             }, sort_keys=True, ensure_ascii=False)),
         )
+
+    def update(self, previous_memory: str, action: str, observation: str,
+               context: MemoryContext, model: Model) -> MemoryUpdate:
+        limit = context.memory_token_limit
+        if type(limit) is not int or limit < 1:
+            raise ValueError("memory_token_limit must be a positive integer")
+        # The caller supplies a valid predecessor (empty() on initialization).
+        # Do not conceal an invalid predecessor or an unusably small allowance.
+        previous_rendered = self.render(previous_memory)
+        _within_budget(previous_rendered, limit, model)
+        messages = self._messages(previous_rendered, action, observation, context, limit)
         events = []
         for attempt in range(2):
             purpose = "memory" if attempt == 0 else "memory_repair"
@@ -221,33 +226,3 @@ class StructuredMemory(_BoundedMemory):
     def _prepare(self, memory: str) -> tuple[str, str]:
         state = _serialize(_object(memory))
         return state, state
-
-
-class HybridMemory(_BoundedMemory):
-    """Two stores in a syntax-only envelope; all facts are rendered and counted."""
-
-    __slots__ = ()
-    strategy = "hybrid"
-    format_instructions = (
-        'Return one JSON object with exactly two keys: "prose" (a notebook string) '
-        'and "structured" (an object with your own keys and nested JSON values). '
-        "Use unique keys, finite numbers, compact JSON, sorted keys, and literal "
-        "Unicode. Both stores may be empty. The actor-visible rendering is exactly "
-        "Prose:\n<prose content>\nStructured JSON:\n<compact sorted structured object>. "
-        "The two stores share ONE total allowance, including both labels and all "
-        "newlines and JSON formatting. Allocate the allowance between stores yourself. "
-        "Write exact quantities as strings if decimal-to-float formatting would change them."
-    )
-
-    def empty(self) -> str:
-        return '{"prose":"","structured":{}}'
-
-    def _prepare(self, memory: str) -> tuple[str, str]:
-        obj = _object(memory)
-        if (set(obj) != {"prose", "structured"}
-                or not isinstance(obj["prose"], str)
-                or not isinstance(obj["structured"], dict)):
-            raise _InvalidMemory("invalid_hybrid_shape")
-        state = _serialize(obj)
-        rendered = f"Prose:\n{obj['prose']}\nStructured JSON:\n{_serialize(obj['structured'])}"
-        return state, rendered

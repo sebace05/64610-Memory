@@ -1,6 +1,6 @@
 # Development guidelines
 
-Current Friday MVP: one real-Qwen checkpoint, then prose vs structured JSON at two prices and two development seeds (eight episodes), one table, and two trace annotations. Defer hybrid, the 120-episode evaluation, dashboards, general batch/resume, and optimization unless they block this MVP. Inspect actual gameplay before launching memory comparisons.
+Current checkpoint: [v31-preserving minimal core](docs/minimal-core.md), with full_history/prose/structured memory. New real inference requires separate authorization. Preserve historical checkpoints and evidence; inspect complete gameplay before further memory comparisons.
 
 Apply the minimal-change approach described by [Ponytail](https://github.com/dietrichgebert/ponytail): read the real workflow, reuse existing code, and add only what the task needs.
 

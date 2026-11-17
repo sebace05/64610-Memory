@@ -1,0 +1,1024 @@
+{
+  "kind": "offline_design_critique_verification",
+  "date": "2026-11-17",
+  "generated_at_utc": "2026-11-17T16:56:40.267053+00:00",
+  "new_pretrained_model_inference": false,
+  "review_snapshot": {
+    "reviewed_at_utc": "2026-11-17T16:49:31.011066+00:00",
+    "source": {
+      "commit": "18ade457aef86bf907c0877db9432d318095bfbc",
+      "worktree_dirty": true,
+      "source_digest": "b961ad33e47118cbd8085195b57bb714fb7ca7c67d7d3f0664e1b349bd300aed"
+    },
+    "files": {
+      "game_memory/__init__.py": {
+        "sha256": "7ecc242fbfb2dc6501963ef40cb1d27feed271885663aaf05bbb30335ec5d000",
+        "lines": 6
+      },
+      "game_memory/actor.py": {
+        "sha256": "9f5fa83f38f9ca55db436d6a42b7249aaebaab2a14ae431242a9d69162185c19",
+        "lines": 189
+      },
+      "game_memory/choice_actor.py": {
+        "sha256": "c3a1f0d41e9cf588dfac24b121c3469d9bd94013547734578c5a3690ebe1e317",
+        "lines": 49
+      },
+      "game_memory/components.py": {
+        "sha256": "993dbdb130fbaf7a8749d0e7de82f685f7808fcbe690b88fc962cbaeb2cd4f38",
+        "lines": 122
+      },
+      "game_memory/contracts.py": {
+        "sha256": "c7d56e2089ae136ecb6bd0acd968534514df5877ee39bc2fb60279fbe689912d",
+        "lines": 85
+      },
+      "game_memory/diagnostics.py": {
+        "sha256": "c7c724aedd878697ded6524e0c3db3464e57008fffb531e15715912c8d007eb0",
+        "lines": 32
+      },
+      "game_memory/environment.py": {
+        "sha256": "ae672b164a677917fae1599feabc8486e996ab2ca1d2f43ff8dfdfeeba6b1534",
+        "lines": 233
+      },
+      "game_memory/integration_fixtures.py": {
+        "sha256": "a830bee74607ad9175b8a23c80a45940bc6244a8610d1ea053723e041dc1ef98",
+        "lines": 102
+      },
+      "game_memory/memory.py": {
+        "sha256": "da0bc78c7f8d221920ad0f799066e591af89b561a66d72d6bba758f494adc49f",
+        "lines": 223
+      },
+      "game_memory/pilot.py": {
+        "sha256": "7b64bb9c19f7b032fc73811d7ca250e66d29d1ab41ecc07c8adfdd6f23089afb",
+        "lines": 73
+      },
+      "game_memory/run_episode.py": {
+        "sha256": "31231d91be3384ddd28023d5d0af0b01621550120ecfac39caca116fe2fddada",
+        "lines": 166
+      },
+      "game_memory/runner.py": {
+        "sha256": "6302263e38f270e70bf3f8ad64dcdcce801a2ccc279854baad955b3ad70dcf34",
+        "lines": 369
+      },
+      "game_memory/summarize_diagnostics.py": {
+        "sha256": "e3ecdff73a87a60512511356cf86a9ced7aec9e067961b51797f1b1228126e8a",
+        "lines": 706
+      },
+      "game_memory/transformers_model.py": {
+        "sha256": "66a92032847256640ae20f4416d93129571545e762bf220002b79000ad7a42cc",
+        "lines": 262
+      },
+      "tests/test_actor.py": {
+        "sha256": "67d1096ae4a032424231950ad4a67c83baa61a8d592c7ee87a0c843b8415d1a3",
+        "lines": 284
+      },
+      "tests/test_choice_actor.py": {
+        "sha256": "cad9fbedf8efa6c8aa8bddc17c45f005bd1a3c58e8c2203e55d9c77e43570040",
+        "lines": 456
+      },
+      "tests/test_colab_java.py": {
+        "sha256": "0ed19052d47a97cbc8962894449b2040dff09763c08f8e9e2b2d1829e430981b",
+        "lines": 43
+      },
+      "tests/test_diagnostic_summary.py": {
+        "sha256": "46203cf82946ad59090f2f4e6d9c187e027def4f499ffb6f1fc92823e8401512",
+        "lines": 333
+      },
+      "tests/test_diagnostics.py": {
+        "sha256": "7b48cabb89a4d7cf37569c59ad7bdd668d233e9a26e33f30c1c57c4e99fb748c",
+        "lines": 98
+      },
+      "tests/test_environment.py": {
+        "sha256": "25aa187aee771305aca91b6aff2d55c1ff1efeca813fa64dc165b2c1ce9f7fb2",
+        "lines": 258
+      },
+      "tests/test_inspect_episode.py": {
+        "sha256": "71f65b9fd0c181c42118398832fa2452ca9bc48cf0a940163204e216a7ae3add",
+        "lines": 67
+      },
+      "tests/test_memory.py": {
+        "sha256": "ef10fa95a739f144c4e047fc065f5b1dc1fa4ebff460a38590bf6858eb5764d4",
+        "lines": 585
+      },
+      "tests/test_memory_integration.py": {
+        "sha256": "0708b7602c61fb128e376131b0891c9619b93b50d98f87142998022449eafc84",
+        "lines": 197
+      },
+      "tests/test_pilot.py": {
+        "sha256": "c14e4632efe238b111eca748e48fe5248990983476f3650983f8f3a70e551b9a",
+        "lines": 369
+      },
+      "tests/test_runner.py": {
+        "sha256": "a75b276e789975e47a075705e1250169379c50ceb8252813543b3c727d54d43c",
+        "lines": 247
+      },
+      "tests/test_transformers_model.py": {
+        "sha256": "5b63db93b066ec2bdd72cd30b093f80c78b63871d0ffded1d0745f23f086ce72",
+        "lines": 334
+      }
+    }
+  },
+  "reviewed_source_files_unchanged_at_verification": true,
+  "panels": {
+    "full_history": {
+      "episodes": [
+        {
+          "episode_id": "8d16e64d1634427eb21d7377dcf22500",
+          "result_path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history/8d16e64d1634427eb21d7377dcf22500/result.json",
+          "result_sha256": "16382dca8ef221edbc7f066b82caa816a7adfa76fe3be5dbf86c795fdc1bc08d",
+          "trace_path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history/8d16e64d1634427eb21d7377dcf22500/events.jsonl",
+          "trace_sha256": "2fbbb2d50c649b8f3d66cc27cd33272bd6b789cca31dea71727874006737c74e",
+          "protocol": "qwen-v31-history-window-checkpoint-v1",
+          "source": {
+            "commit": null,
+            "source_digest": "64c3520c626457a07f14f499e79b3947c4c4115f401cce93bba232b341756d84",
+            "worktree_dirty": null
+          },
+          "config": {
+            "action_budget": 80,
+            "game": {
+              "game_fold": "train",
+              "include_doors": false,
+              "limit_inventory_size": false,
+              "num_distractor_items": 0,
+              "num_ingredients": 2,
+              "num_locations": 1
+            },
+            "memory_token_limit": 512,
+            "recheck_cost": 2,
+            "seed": 0,
+            "strategy": "full_history"
+          },
+          "actor": {
+            "action_output_policy": "optional_article_exact_match_v1",
+            "action_repair_policy": "exclude_rejected_shared_finalization_v2",
+            "action_review_policy": "legal_prepare_shared_finalization_v2",
+            "context_mode": "full_history",
+            "implementation": "PromptedActor",
+            "is_fake": false,
+            "max_repairs": 1,
+            "prompt_version": "full-history-v31",
+            "repeated_observation_guard": "disabled; game action budget is the limit"
+          },
+          "memory": {
+            "contents": "initial_observation_and_all_nonterminal_actions_observations",
+            "diagnostic_only": true,
+            "implementation": "FullHistoryMemory",
+            "is_fake": false,
+            "strategy": "full_history",
+            "token_limit_applies": false,
+            "version": 1
+          },
+          "status": "completed",
+          "success": true,
+          "steps": 11,
+          "budget_spent": 12,
+          "recipe_rechecks": 1,
+          "termination_reason": "success",
+          "memory_updates": 11,
+          "min_stored_tokens": 216,
+          "max_stored_tokens": 464,
+          "validation_events": {
+            "full_history_diagnostic_no_compression": 11
+          },
+          "usage_by_purpose": {
+            "action": {
+              "calls": 11,
+              "elapsed_seconds": 15.443349637000004,
+              "input_tokens": 10275,
+              "output_tokens": 339
+            },
+            "action_repair": {
+              "calls": 3,
+              "elapsed_seconds": 4.319308590999995,
+              "input_tokens": 2356,
+              "output_tokens": 101
+            },
+            "action_review": {
+              "calls": 1,
+              "elapsed_seconds": 2.2809320730000024,
+              "input_tokens": 904,
+              "output_tokens": 55
+            }
+          },
+          "input_tokens": 13535,
+          "output_tokens": 495,
+          "model_elapsed_seconds": 22.043590301000002,
+          "runtime_seconds": 23.084427761999997
+        },
+        {
+          "episode_id": "40d11a644b9e4fe5ab4d9eb25a69c5e0",
+          "result_path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history/40d11a644b9e4fe5ab4d9eb25a69c5e0/result.json",
+          "result_sha256": "27dd3133ba3a291bb9ecd3f2bcbb77f21c5755b5027e24db63e3160849f1719c",
+          "trace_path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history/40d11a644b9e4fe5ab4d9eb25a69c5e0/events.jsonl",
+          "trace_sha256": "7cb4ae0197abb83def554f4f68b323caf35d34aa8952b0c92e7bf2875b5ccf7b",
+          "protocol": "qwen-v31-history-window-checkpoint-v1",
+          "source": {
+            "commit": null,
+            "source_digest": "64c3520c626457a07f14f499e79b3947c4c4115f401cce93bba232b341756d84",
+            "worktree_dirty": null
+          },
+          "config": {
+            "action_budget": 80,
+            "game": {
+              "game_fold": "train",
+              "include_doors": false,
+              "limit_inventory_size": false,
+              "num_distractor_items": 0,
+              "num_ingredients": 2,
+              "num_locations": 1
+            },
+            "memory_token_limit": 512,
+            "recheck_cost": 2,
+            "seed": 1,
+            "strategy": "full_history"
+          },
+          "actor": {
+            "action_output_policy": "optional_article_exact_match_v1",
+            "action_repair_policy": "exclude_rejected_shared_finalization_v2",
+            "action_review_policy": "legal_prepare_shared_finalization_v2",
+            "context_mode": "full_history",
+            "implementation": "PromptedActor",
+            "is_fake": false,
+            "max_repairs": 1,
+            "prompt_version": "full-history-v31",
+            "repeated_observation_guard": "disabled; game action budget is the limit"
+          },
+          "memory": {
+            "contents": "initial_observation_and_all_nonterminal_actions_observations",
+            "diagnostic_only": true,
+            "implementation": "FullHistoryMemory",
+            "is_fake": false,
+            "strategy": "full_history",
+            "token_limit_applies": false,
+            "version": 1
+          },
+          "status": "completed",
+          "success": true,
+          "steps": 9,
+          "budget_spent": 11,
+          "recipe_rechecks": 2,
+          "termination_reason": "success",
+          "memory_updates": 9,
+          "min_stored_tokens": 202,
+          "max_stored_tokens": 431,
+          "validation_events": {
+            "full_history_diagnostic_no_compression": 9
+          },
+          "usage_by_purpose": {
+            "action": {
+              "calls": 9,
+              "elapsed_seconds": 12.189983125999994,
+              "input_tokens": 8040,
+              "output_tokens": 280
+            },
+            "action_repair": {
+              "calls": 2,
+              "elapsed_seconds": 2.5202002110000024,
+              "input_tokens": 1643,
+              "output_tokens": 58
+            },
+            "action_review": {
+              "calls": 1,
+              "elapsed_seconds": 1.786693507999999,
+              "input_tokens": 862,
+              "output_tokens": 42
+            }
+          },
+          "input_tokens": 10545,
+          "output_tokens": 380,
+          "model_elapsed_seconds": 16.496876844999996,
+          "runtime_seconds": 17.039109579999995
+        },
+        {
+          "episode_id": "8b0064a9c5c04e0ba2fef9cf5978afe3",
+          "result_path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history/8b0064a9c5c04e0ba2fef9cf5978afe3/result.json",
+          "result_sha256": "98a93d00e54e3bb66424b72eed20d06127549116916abedd7b080b7369c2c311",
+          "trace_path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history/8b0064a9c5c04e0ba2fef9cf5978afe3/events.jsonl",
+          "trace_sha256": "1f7d3b2c1ed08f9f4d90cc52582e44961bc0e94781078df88b70e03115297bb1",
+          "protocol": "qwen-v31-history-window-checkpoint-v1",
+          "source": {
+            "commit": null,
+            "source_digest": "64c3520c626457a07f14f499e79b3947c4c4115f401cce93bba232b341756d84",
+            "worktree_dirty": null
+          },
+          "config": {
+            "action_budget": 80,
+            "game": {
+              "game_fold": "train",
+              "include_doors": false,
+              "limit_inventory_size": false,
+              "num_distractor_items": 0,
+              "num_ingredients": 2,
+              "num_locations": 1
+            },
+            "memory_token_limit": 512,
+            "recheck_cost": 2,
+            "seed": 2,
+            "strategy": "full_history"
+          },
+          "actor": {
+            "action_output_policy": "optional_article_exact_match_v1",
+            "action_repair_policy": "exclude_rejected_shared_finalization_v2",
+            "action_review_policy": "legal_prepare_shared_finalization_v2",
+            "context_mode": "full_history",
+            "implementation": "PromptedActor",
+            "is_fake": false,
+            "max_repairs": 1,
+            "prompt_version": "full-history-v31",
+            "repeated_observation_guard": "disabled; game action budget is the limit"
+          },
+          "memory": {
+            "contents": "initial_observation_and_all_nonterminal_actions_observations",
+            "diagnostic_only": true,
+            "implementation": "FullHistoryMemory",
+            "is_fake": false,
+            "strategy": "full_history",
+            "token_limit_applies": false,
+            "version": 1
+          },
+          "status": "completed",
+          "success": false,
+          "steps": 3,
+          "budget_spent": 3,
+          "recipe_rechecks": 0,
+          "termination_reason": "terminal_failure",
+          "memory_updates": 3,
+          "min_stored_tokens": 195,
+          "max_stored_tokens": 238,
+          "validation_events": {
+            "full_history_diagnostic_no_compression": 3
+          },
+          "usage_by_purpose": {
+            "action": {
+              "calls": 3,
+              "elapsed_seconds": 4.118312975999984,
+              "input_tokens": 2356,
+              "output_tokens": 96
+            }
+          },
+          "input_tokens": 2356,
+          "output_tokens": 96,
+          "model_elapsed_seconds": 4.118312975999984,
+          "runtime_seconds": 4.597096827000001
+        },
+        {
+          "episode_id": "4fe970f1738b43e2a4470cdbcb656f8e",
+          "result_path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history/4fe970f1738b43e2a4470cdbcb656f8e/result.json",
+          "result_sha256": "a57bacd632b1a4a5a8ccb132300949ff9a58409408219cb536423148c85f0bd2",
+          "trace_path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history/4fe970f1738b43e2a4470cdbcb656f8e/events.jsonl",
+          "trace_sha256": "3109a26d3440ef3dcb73cf0f16abe496c948e2de4546a97f172792b6d746c8f7",
+          "protocol": "qwen-v31-history-window-checkpoint-v1",
+          "source": {
+            "commit": null,
+            "source_digest": "64c3520c626457a07f14f499e79b3947c4c4115f401cce93bba232b341756d84",
+            "worktree_dirty": null
+          },
+          "config": {
+            "action_budget": 80,
+            "game": {
+              "game_fold": "train",
+              "include_doors": false,
+              "limit_inventory_size": false,
+              "num_distractor_items": 0,
+              "num_ingredients": 2,
+              "num_locations": 1
+            },
+            "memory_token_limit": 512,
+            "recheck_cost": 2,
+            "seed": 3,
+            "strategy": "full_history"
+          },
+          "actor": {
+            "action_output_policy": "optional_article_exact_match_v1",
+            "action_repair_policy": "exclude_rejected_shared_finalization_v2",
+            "action_review_policy": "legal_prepare_shared_finalization_v2",
+            "context_mode": "full_history",
+            "implementation": "PromptedActor",
+            "is_fake": false,
+            "max_repairs": 1,
+            "prompt_version": "full-history-v31",
+            "repeated_observation_guard": "disabled; game action budget is the limit"
+          },
+          "memory": {
+            "contents": "initial_observation_and_all_nonterminal_actions_observations",
+            "diagnostic_only": true,
+            "implementation": "FullHistoryMemory",
+            "is_fake": false,
+            "strategy": "full_history",
+            "token_limit_applies": false,
+            "version": 1
+          },
+          "status": "completed",
+          "success": true,
+          "steps": 8,
+          "budget_spent": 8,
+          "recipe_rechecks": 0,
+          "termination_reason": "success",
+          "memory_updates": 8,
+          "min_stored_tokens": 197,
+          "max_stored_tokens": 345,
+          "validation_events": {
+            "full_history_diagnostic_no_compression": 8
+          },
+          "usage_by_purpose": {
+            "action": {
+              "calls": 8,
+              "elapsed_seconds": 10.889726108999994,
+              "input_tokens": 6573,
+              "output_tokens": 250
+            },
+            "action_repair": {
+              "calls": 2,
+              "elapsed_seconds": 3.012578372000007,
+              "input_tokens": 1509,
+              "output_tokens": 71
+            },
+            "action_review": {
+              "calls": 1,
+              "elapsed_seconds": 1.7253927810000107,
+              "input_tokens": 778,
+              "output_tokens": 41
+            }
+          },
+          "input_tokens": 8860,
+          "output_tokens": 362,
+          "model_elapsed_seconds": 15.627697262000012,
+          "runtime_seconds": 16.166943107999998
+        }
+      ],
+      "descriptive_totals": {
+        "input_tokens": 35296.0,
+        "output_tokens": 1333.0,
+        "model_elapsed_seconds": 58.286477383999994,
+        "runtime_seconds": 60.88757727699999,
+        "action_calls": 31.0,
+        "action_input_tokens": 27244.0,
+        "action_output_tokens": 965.0,
+        "action_elapsed_seconds": 42.64137184799998,
+        "action_repair_calls": 7.0,
+        "action_repair_input_tokens": 5508.0,
+        "action_repair_output_tokens": 230.0,
+        "action_repair_elapsed_seconds": 9.852087174000005,
+        "action_review_calls": 3.0,
+        "action_review_input_tokens": 2544.0,
+        "action_review_output_tokens": 138.0,
+        "action_review_elapsed_seconds": 5.793018362000012
+      },
+      "not_a_matched_comparison_to_other_panel": true
+    },
+    "bounded": {
+      "episodes": [
+        {
+          "episode_id": "5b514a8c838d42bf93c56c4d0bd98c80",
+          "result_path": "artifacts/modal-downloads/modal-a10-gpu-20261116T193239Z-801ced89-7ae608fd/modal-a10-gpu-20261116T193239Z-801ced89/prose-512-seed-0/5b514a8c838d42bf93c56c4d0bd98c80/result.json",
+          "result_sha256": "2a5d67db3bd6eb61efeab369167eb08e66a78ec4439760dcf3224b06cca692b2",
+          "trace_path": "artifacts/modal-downloads/modal-a10-gpu-20261116T193239Z-801ced89-7ae608fd/modal-a10-gpu-20261116T193239Z-801ced89/prose-512-seed-0/5b514a8c838d42bf93c56c4d0bd98c80/events.jsonl",
+          "trace_sha256": "471704780adcd4ba69ff0980fc9dbbe6052f860f68eb5b7b85fa275b869f3930",
+          "protocol": "qwen-v31-v17-modal-a10-roomy-calibration-v1",
+          "source": {
+            "commit": null,
+            "source_digest": "1cc6aec3a37373e057887185207439e5f9a3a57ae576d89ffe69ac41f3a93429",
+            "worktree_dirty": null
+          },
+          "config": {
+            "action_budget": 80,
+            "game": {
+              "game_fold": "train",
+              "include_doors": false,
+              "limit_inventory_size": false,
+              "num_distractor_items": 0,
+              "num_ingredients": 2,
+              "num_locations": 1
+            },
+            "memory_token_limit": 512,
+            "recheck_cost": 2,
+            "seed": 0,
+            "strategy": "prose"
+          },
+          "actor": {
+            "action_output_policy": "optional_article_exact_match_v1",
+            "action_repair_policy": "exclude_rejected_shared_finalization_v2",
+            "action_review_policy": "legal_prepare_shared_finalization_v2",
+            "context_mode": "bounded_memory",
+            "implementation": "PromptedActor",
+            "is_fake": false,
+            "max_repairs": 1,
+            "prompt_version": "s2-action-v31",
+            "repeated_observation_guard": "disabled; game action budget is the limit"
+          },
+          "memory": {
+            "fallback": "previous_valid_memory",
+            "implementation": "ProseMemory",
+            "is_fake": false,
+            "json_policy": null,
+            "max_repairs": 1,
+            "prompt_version": "p1-memory-v17",
+            "render_version": "p1-render-v2",
+            "semantic_validation": "none",
+            "strategy": "prose",
+            "update_policy": "syntax_and_size_one_repair_previous_state_v1",
+            "version": 17
+          },
+          "status": "completed",
+          "success": false,
+          "steps": 7,
+          "budget_spent": 7,
+          "recipe_rechecks": 0,
+          "termination_reason": "terminal_failure",
+          "memory_updates": 7,
+          "min_stored_tokens": 180,
+          "max_stored_tokens": 203,
+          "validation_events": {
+            "memory_accepted": 7
+          },
+          "usage_by_purpose": {
+            "action": {
+              "calls": 7,
+              "elapsed_seconds": 10.000159226000001,
+              "input_tokens": 5450,
+              "output_tokens": 231
+            },
+            "memory": {
+              "calls": 7,
+              "elapsed_seconds": 54.53301180200002,
+              "input_tokens": 3185,
+              "output_tokens": 1342
+            }
+          },
+          "input_tokens": 8635,
+          "output_tokens": 1573,
+          "model_elapsed_seconds": 64.53317102800003,
+          "runtime_seconds": 65.106780982
+        },
+        {
+          "episode_id": "7a1a52e33d664fceab004b4364a95dce",
+          "result_path": "artifacts/modal-downloads/modal-a10-gpu-20261116T193504Z-ec966b96-cad36286/modal-a10-gpu-20261116T193504Z-ec966b96/prose-512-seed-1/7a1a52e33d664fceab004b4364a95dce/result.json",
+          "result_sha256": "f35992fc31cc0ec6e3a07bf3eb9013d71c0e5dacd8704302031a269d5089d9bb",
+          "trace_path": "artifacts/modal-downloads/modal-a10-gpu-20261116T193504Z-ec966b96-cad36286/modal-a10-gpu-20261116T193504Z-ec966b96/prose-512-seed-1/7a1a52e33d664fceab004b4364a95dce/events.jsonl",
+          "trace_sha256": "327ab6012ce06d8bcc11124a5bfb3dd5475d3de5517e8702969df7498a1597d9",
+          "protocol": "qwen-v31-v17-modal-a10-roomy-calibration-v1",
+          "source": {
+            "commit": null,
+            "source_digest": "1cc6aec3a37373e057887185207439e5f9a3a57ae576d89ffe69ac41f3a93429",
+            "worktree_dirty": null
+          },
+          "config": {
+            "action_budget": 80,
+            "game": {
+              "game_fold": "train",
+              "include_doors": false,
+              "limit_inventory_size": false,
+              "num_distractor_items": 0,
+              "num_ingredients": 2,
+              "num_locations": 1
+            },
+            "memory_token_limit": 512,
+            "recheck_cost": 2,
+            "seed": 1,
+            "strategy": "prose"
+          },
+          "actor": {
+            "action_output_policy": "optional_article_exact_match_v1",
+            "action_repair_policy": "exclude_rejected_shared_finalization_v2",
+            "action_review_policy": "legal_prepare_shared_finalization_v2",
+            "context_mode": "bounded_memory",
+            "implementation": "PromptedActor",
+            "is_fake": false,
+            "max_repairs": 1,
+            "prompt_version": "s2-action-v31",
+            "repeated_observation_guard": "disabled; game action budget is the limit"
+          },
+          "memory": {
+            "fallback": "previous_valid_memory",
+            "implementation": "ProseMemory",
+            "is_fake": false,
+            "json_policy": null,
+            "max_repairs": 1,
+            "prompt_version": "p1-memory-v17",
+            "render_version": "p1-render-v2",
+            "semantic_validation": "none",
+            "strategy": "prose",
+            "update_policy": "syntax_and_size_one_repair_previous_state_v1",
+            "version": 17
+          },
+          "status": "completed",
+          "success": false,
+          "steps": 42,
+          "budget_spent": 80,
+          "recipe_rechecks": 38,
+          "termination_reason": "budget_exhaustion",
+          "memory_updates": 42,
+          "min_stored_tokens": 128,
+          "max_stored_tokens": 203,
+          "validation_events": {
+            "memory_accepted": 42
+          },
+          "usage_by_purpose": {
+            "action": {
+              "calls": 42,
+              "elapsed_seconds": 45.56864995300001,
+              "input_tokens": 29514,
+              "output_tokens": 1340
+            },
+            "action_repair": {
+              "calls": 39,
+              "elapsed_seconds": 34.98798634399991,
+              "input_tokens": 24120,
+              "output_tokens": 1026
+            },
+            "memory": {
+              "calls": 42,
+              "elapsed_seconds": 181.46244778300007,
+              "input_tokens": 18325,
+              "output_tokens": 5803
+            }
+          },
+          "input_tokens": 71959,
+          "output_tokens": 8169,
+          "model_elapsed_seconds": 262.01908407999997,
+          "runtime_seconds": 263.01989685300003
+        },
+        {
+          "episode_id": "adf104b67a114ee5a75d57c5876bda1f",
+          "result_path": "artifacts/modal-downloads/modal-a10-gpu-20261116T195854Z-4e297a62-d35563aa/modal-a10-gpu-20261116T195854Z-4e297a62/structured-512-seed-0/adf104b67a114ee5a75d57c5876bda1f/result.json",
+          "result_sha256": "02716dec536516606d66a1cfb2fef8686b41809aa01b5d8cabfee3540ce2fbd6",
+          "trace_path": "artifacts/modal-downloads/modal-a10-gpu-20261116T195854Z-4e297a62-d35563aa/modal-a10-gpu-20261116T195854Z-4e297a62/structured-512-seed-0/adf104b67a114ee5a75d57c5876bda1f/events.jsonl",
+          "trace_sha256": "d6f45ce242b5e1746405e68442aeb4e3e089f4d8a91a1dd54a3ebc3531402dc7",
+          "protocol": "qwen-v31-v17-modal-a10-roomy-calibration-audit-v2",
+          "source": {
+            "commit": null,
+            "source_digest": "4842d1833f630ac961a39025eb1f8ad6a4ba2bfed51eb87605644dc0951728ce",
+            "worktree_dirty": null
+          },
+          "config": {
+            "action_budget": 80,
+            "game": {
+              "game_fold": "train",
+              "include_doors": false,
+              "limit_inventory_size": false,
+              "num_distractor_items": 0,
+              "num_ingredients": 2,
+              "num_locations": 1
+            },
+            "memory_token_limit": 512,
+            "recheck_cost": 2,
+            "seed": 0,
+            "strategy": "structured"
+          },
+          "actor": {
+            "action_output_policy": "optional_article_exact_match_v1",
+            "action_repair_policy": "exclude_rejected_shared_finalization_v2",
+            "action_review_policy": "legal_prepare_shared_finalization_v2",
+            "context_mode": "bounded_memory",
+            "implementation": "PromptedActor",
+            "is_fake": false,
+            "max_repairs": 1,
+            "prompt_version": "s2-action-v31",
+            "repeated_observation_guard": "disabled; game action budget is the limit"
+          },
+          "memory": {
+            "fallback": "previous_valid_memory",
+            "implementation": "StructuredMemory",
+            "is_fake": false,
+            "json_policy": "object_unique_keys_value_preserving_numbers_compact_sorted_utf8_v2",
+            "max_repairs": 1,
+            "prompt_version": "p1-memory-v17",
+            "render_version": "p1-render-v2",
+            "semantic_validation": "none",
+            "strategy": "structured",
+            "update_policy": "syntax_and_size_one_repair_previous_state_v1",
+            "version": 17
+          },
+          "status": "completed",
+          "success": false,
+          "steps": 80,
+          "budget_spent": 80,
+          "recipe_rechecks": 0,
+          "termination_reason": "budget_exhaustion",
+          "memory_updates": 80,
+          "min_stored_tokens": 140,
+          "max_stored_tokens": 141,
+          "validation_events": {
+            "memory_json_canonicalized": 1,
+            "memory_accepted": 78,
+            "memory_rejected:malformed_json": 2,
+            "memory_repair_rejected:malformed_json": 2,
+            "memory_fallback:previous_valid_memory": 2
+          },
+          "usage_by_purpose": {
+            "action": {
+              "calls": 80,
+              "elapsed_seconds": 82.14134453799986,
+              "input_tokens": 54998,
+              "output_tokens": 2476
+            },
+            "memory": {
+              "calls": 80,
+              "elapsed_seconds": 349.12649814799994,
+              "input_tokens": 35713,
+              "output_tokens": 11439
+            },
+            "memory_repair": {
+              "calls": 2,
+              "elapsed_seconds": 8.875278031,
+              "input_tokens": 1256,
+              "output_tokens": 280
+            }
+          },
+          "input_tokens": 91967,
+          "output_tokens": 14195,
+          "model_elapsed_seconds": 440.1431207169998,
+          "runtime_seconds": 441.388879481
+        },
+        {
+          "episode_id": "7ab430abf5f34dd2922ecb9e316ce428",
+          "result_path": "artifacts/modal-downloads/modal-a10-gpu-20261116T200725Z-5a96ba02-dc5ba025/modal-a10-gpu-20261116T200725Z-5a96ba02/structured-512-seed-1/7ab430abf5f34dd2922ecb9e316ce428/result.json",
+          "result_sha256": "556207e581baaa1a59261545849ce4097921a59ec9a29daa795df3e0da57a457",
+          "trace_path": "artifacts/modal-downloads/modal-a10-gpu-20261116T200725Z-5a96ba02-dc5ba025/modal-a10-gpu-20261116T200725Z-5a96ba02/structured-512-seed-1/7ab430abf5f34dd2922ecb9e316ce428/events.jsonl",
+          "trace_sha256": "be1256beb69a2d1e8a2faf221b7bd14712d786345811b8932d2ab7f8a0125a81",
+          "protocol": "qwen-v31-v17-modal-a10-roomy-calibration-audit-v2",
+          "source": {
+            "commit": null,
+            "source_digest": "4842d1833f630ac961a39025eb1f8ad6a4ba2bfed51eb87605644dc0951728ce",
+            "worktree_dirty": null
+          },
+          "config": {
+            "action_budget": 80,
+            "game": {
+              "game_fold": "train",
+              "include_doors": false,
+              "limit_inventory_size": false,
+              "num_distractor_items": 0,
+              "num_ingredients": 2,
+              "num_locations": 1
+            },
+            "memory_token_limit": 512,
+            "recheck_cost": 2,
+            "seed": 1,
+            "strategy": "structured"
+          },
+          "actor": {
+            "action_output_policy": "optional_article_exact_match_v1",
+            "action_repair_policy": "exclude_rejected_shared_finalization_v2",
+            "action_review_policy": "legal_prepare_shared_finalization_v2",
+            "context_mode": "bounded_memory",
+            "implementation": "PromptedActor",
+            "is_fake": false,
+            "max_repairs": 1,
+            "prompt_version": "s2-action-v31",
+            "repeated_observation_guard": "disabled; game action budget is the limit"
+          },
+          "memory": {
+            "fallback": "previous_valid_memory",
+            "implementation": "StructuredMemory",
+            "is_fake": false,
+            "json_policy": "object_unique_keys_value_preserving_numbers_compact_sorted_utf8_v2",
+            "max_repairs": 1,
+            "prompt_version": "p1-memory-v17",
+            "render_version": "p1-render-v2",
+            "semantic_validation": "none",
+            "strategy": "structured",
+            "update_policy": "syntax_and_size_one_repair_previous_state_v1",
+            "version": 17
+          },
+          "status": "completed",
+          "success": false,
+          "steps": 77,
+          "budget_spent": 80,
+          "recipe_rechecks": 3,
+          "termination_reason": "budget_exhaustion",
+          "memory_updates": 77,
+          "min_stored_tokens": 95,
+          "max_stored_tokens": 106,
+          "validation_events": {
+            "memory_json_canonicalized": 2,
+            "memory_accepted": 77
+          },
+          "usage_by_purpose": {
+            "action": {
+              "calls": 77,
+              "elapsed_seconds": 105.7495726349998,
+              "input_tokens": 49296,
+              "output_tokens": 2330
+            },
+            "action_repair": {
+              "calls": 4,
+              "elapsed_seconds": 5.553428588000003,
+              "input_tokens": 2403,
+              "output_tokens": 124
+            },
+            "memory": {
+              "calls": 77,
+              "elapsed_seconds": 325.58199838499985,
+              "input_tokens": 30975,
+              "output_tokens": 7544
+            }
+          },
+          "input_tokens": 82674,
+          "output_tokens": 9998,
+          "model_elapsed_seconds": 436.88499960799965,
+          "runtime_seconds": 438.465223191
+        }
+      ],
+      "descriptive_totals": {
+        "input_tokens": 255235.0,
+        "output_tokens": 33935.0,
+        "model_elapsed_seconds": 1203.5803754329995,
+        "runtime_seconds": 1207.980780507,
+        "action_calls": 206.0,
+        "action_input_tokens": 139258.0,
+        "action_output_tokens": 6377.0,
+        "action_elapsed_seconds": 243.45972635199965,
+        "memory_calls": 206.0,
+        "memory_input_tokens": 88198.0,
+        "memory_output_tokens": 26128.0,
+        "memory_elapsed_seconds": 910.703956118,
+        "action_repair_calls": 43.0,
+        "action_repair_input_tokens": 26523.0,
+        "action_repair_output_tokens": 1150.0,
+        "action_repair_elapsed_seconds": 40.54141493199991,
+        "memory_repair_calls": 2.0,
+        "memory_repair_input_tokens": 1256.0,
+        "memory_repair_output_tokens": 280.0,
+        "memory_repair_elapsed_seconds": 8.875278031
+      },
+      "not_a_matched_comparison_to_other_panel": true
+    }
+  },
+  "read_only_condition_audits": [
+    {
+      "path": "artifacts/qwen-v31-history-window-checkpoint-v1/full_history",
+      "logging_checks_passed": true,
+      "real_completed": 4,
+      "real_successes": 3,
+      "issues": []
+    },
+    {
+      "path": "artifacts/modal-downloads/modal-a10-gpu-20261116T193239Z-801ced89-7ae608fd/modal-a10-gpu-20261116T193239Z-801ced89/prose-512-seed-0",
+      "logging_checks_passed": true,
+      "real_completed": 1,
+      "real_successes": 0,
+      "issues": []
+    },
+    {
+      "path": "artifacts/modal-downloads/modal-a10-gpu-20261116T193504Z-ec966b96-cad36286/modal-a10-gpu-20261116T193504Z-ec966b96/prose-512-seed-1",
+      "logging_checks_passed": true,
+      "real_completed": 1,
+      "real_successes": 0,
+      "issues": []
+    },
+    {
+      "path": "artifacts/modal-downloads/modal-a10-gpu-20261116T195854Z-4e297a62-d35563aa/modal-a10-gpu-20261116T195854Z-4e297a62/structured-512-seed-0",
+      "logging_checks_passed": true,
+      "real_completed": 1,
+      "real_successes": 0,
+      "issues": []
+    },
+    {
+      "path": "artifacts/modal-downloads/modal-a10-gpu-20261116T200725Z-5a96ba02-dc5ba025/modal-a10-gpu-20261116T200725Z-5a96ba02/structured-512-seed-1",
+      "logging_checks_passed": true,
+      "real_completed": 1,
+      "real_successes": 0,
+      "issues": []
+    }
+  ],
+  "auditor_copy_mutation_probes": [
+    {
+      "name": "action_link",
+      "temporary_copy_root": "/private/tmp/64610-critique-probes-lz6gxh2p/action_link",
+      "variants": [
+        {
+          "variant": "original_copy",
+          "logging_checks_passed": true,
+          "issues": []
+        },
+        {
+          "variant": "altered_copy",
+          "logging_checks_passed": true,
+          "issues": []
+        }
+      ],
+      "original_artifacts_modified": false,
+      "transformation": {
+        "source_episode_id": "8b0064a9c5c04e0ba2fef9cf5978afe3",
+        "event": "model_response",
+        "step": 3,
+        "purpose": "action",
+        "sequence": 12,
+        "replace_text": "cook chicken wing in oven",
+        "with_text": "cook chicken wing in toaster",
+        "transition_unchanged": true
+      }
+    },
+    {
+      "name": "memory_link",
+      "temporary_copy_root": "/private/tmp/64610-critique-probes-lz6gxh2p/memory_link",
+      "variants": [
+        {
+          "variant": "original_copy",
+          "logging_checks_passed": true,
+          "issues": []
+        },
+        {
+          "variant": "altered_copy",
+          "logging_checks_passed": true,
+          "issues": []
+        }
+      ],
+      "original_artifacts_modified": false,
+      "transformation": {
+        "source_episode_id": "5b514a8c838d42bf93c56c4d0bd98c80",
+        "event": "model_response",
+        "step": 0,
+        "purpose": "memory",
+        "sequence": 3,
+        "replace_entire_text_with": "Unrelated text that was never stored in memory.",
+        "memory_update_and_actor_inputs_unchanged": true
+      }
+    }
+  ],
+  "optional_article_probe": {
+    "input": "{\"action\":\"take the red apple\"}",
+    "allowed_actions": [
+      "take red apple"
+    ],
+    "production": [
+      "take red apple",
+      null
+    ],
+    "diagnostic": {
+      "action": {
+        "unavailable_action": 1
+      },
+      "action_repair": {}
+    }
+  },
+  "v16_reproduction_provenance_counts": {
+    "prose": {
+      "updates": 30,
+      "validation_events": {
+        "memory_rejected:recipe_dropped": 30,
+        "memory_repair_rejected:recipe_dropped": 30,
+        "memory_fallback:initial_public_observation": 4,
+        "memory_fallback:public_evidence": 26
+      }
+    },
+    "structured": {
+      "updates": 36,
+      "validation_events": {
+        "memory_json_canonicalized": 32,
+        "memory_accepted": 34,
+        "memory_rejected:malformed_json": 2,
+        "memory_repair_rejected:malformed_json": 2,
+        "memory_fallback:previous_valid_memory": 2
+      }
+    }
+  },
+  "software_tests": {
+    "sandbox_interrupted": {
+      "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q",
+      "exit_status": 2,
+      "log_path": "/private/tmp/64610-design-critique-20261117-pytest.log",
+      "log_sha256": "58679455a7090b65d4d7ec1917e622f5437bed40befbb6b9b7807b91aa0fe78f",
+      "log": "........................................................................ [ 17%]\n........................................................................ [ 35%]\n...................s..........\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! KeyboardInterrupt !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n/Users/abdivu/Desktop/school/6.4610/64610-Memory/.venv/lib/python3.12/site-packages/py4j/java_gateway.py:337: KeyboardInterrupt\n(to show a full traceback on KeyboardInterrupt use --full-trace)\n173 passed, 1 skipped in 140.38s (0:02:20)\nException ignored in: <function TextWorldExpressEnv.__del__ at 0x106b0d300>\nTraceback (most recent call last):\n  File \"/Users/abdivu/Desktop/school/6.4610/64610-Memory/.venv/lib/python3.12/site-packages/textworld_express/textworld_express.py\", line 158, in __del__\n    self.close()\n  File \"/Users/abdivu/Desktop/school/6.4610/64610-Memory/.venv/lib/python3.12/site-packages/textworld_express/textworld_express.py\", line 149, in close\n    self._gateway.shutdown()\n    ^^^^^^^^^^^^^\nAttributeError: 'TextWorldExpressEnv' object has no attribute '_gateway'\n"
+    },
+    "local_loopback_completed": {
+      "command": "PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q",
+      "exit_status": 0,
+      "log_path": "/private/tmp/64610-design-critique-20261117-pytest-local.log",
+      "log_sha256": "698247b95f689ac01770f4cf29e8320ff63af7c2fd1d6c132549b1cef170be67",
+      "log": "........................................................................ [ 17%]\n........................................................................ [ 35%]\n...................s.................................................... [ 52%]\n........................................................................ [ 70%]\n..............................................s......................... [ 88%]\n.........................sssssssssssssssssssssss                         [100%]\n=============================== warnings summary ===============================\ntests/test_runner.py::test_repeated_inspections_reach_budget_with_trace\n  /Users/abdivu/Desktop/school/6.4610/64610-Memory/.venv/lib/python3.12/site-packages/_pytest/unraisableexception.py:63: PytestUnraisableExceptionWarning: Exception ignored in: <function TextWorldExpressEnv.__del__ at 0x104411300>\n  \n  Traceback (most recent call last):\n    File \"/Users/abdivu/Desktop/school/6.4610/64610-Memory/.venv/lib/python3.12/site-packages/textworld_express/textworld_express.py\", line 158, in __del__\n      self.close()\n    File \"/Users/abdivu/Desktop/school/6.4610/64610-Memory/.venv/lib/python3.12/site-packages/textworld_express/textworld_express.py\", line 155, in close\n      self._gateway.java_process.stdin.flush()\n  BrokenPipeError: [Errno 32] Broken pipe\n  \n  Enable tracemalloc to get traceback where the object was allocated.\n  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.\n    warnings.warn(pytest.PytestUnraisableExceptionWarning(msg))\n\n-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html\n383 passed, 25 skipped, 1 warning in 22.07s\n"
+    }
+  },
+  "token_count_scope": "Saved trace counts; historical independent tokenizer recounts are linked in the report. No fresh Qwen tokenizer recount was performed.",
+  "external_sources": [
+    {
+      "title": "DSSR",
+      "url": "https://arxiv.org/html/2609.32805v2"
+    },
+    {
+      "title": "Qwen3-4B-Instruct-2507 model card",
+      "url": "https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507"
+    },
+    {
+      "title": "Qwen3-8B model card",
+      "url": "https://huggingface.co/Qwen/Qwen3-8B"
+    },
+    {
+      "title": "TextWorldExpress project",
+      "url": "https://github.com/cognitiveailab/TextWorldExpress"
+    },
+    {
+      "title": "TextWorldExpress paper",
+      "url": "https://arxiv.org/abs/2208.01174"
+    },
+    {
+      "title": "POPGym paper",
+      "url": "https://arxiv.org/abs/2303.01859"
+    },
+    {
+      "title": "TWOSOME paper",
+      "url": "https://arxiv.org/abs/2401.14151"
+    }
+  ]
+}

@@ -29,7 +29,7 @@ def execute(tmp_path, config=None, model=None, memory=None):
     return result, events
 
 
-@pytest.mark.parametrize("strategy", ["prose", "structured", "hybrid"])
+@pytest.mark.parametrize("strategy", ["prose", "structured"])
 @pytest.mark.parametrize("price", [2, 5])
 def test_real_game_runs_with_interchangeable_fixture_components(tmp_path, strategy, price):
     config = EpisodeConfig(strategy=strategy, recheck_cost=price, action_budget=6)
@@ -101,7 +101,7 @@ def test_action_repair_is_logged_and_counted(tmp_path):
 
 def test_repeated_inspections_reach_budget_with_trace(tmp_path):
     config = EpisodeConfig(strategy="full_history", action_budget=80)
-    actor = PromptedActor(full_history=True, prompt_version="v11")
+    actor = PromptedActor(full_history=True, prompt_version="v31")
     with CookingWorldEnvironment(action_budget=80) as env:
         result = run_episode(config, env, actor, FullHistoryMemory(), RepeatInspectionModel(),
                              output_dir=tmp_path)
@@ -118,8 +118,8 @@ def test_repeated_inspections_reach_budget_with_trace(tmp_path):
 
 
 
-def test_runner_resets_inspection_guard_for_each_episode(tmp_path):
-    actor = PromptedActor(prompt_version="v13")
+def test_reused_actor_starts_fresh_episode_without_prior_turns(tmp_path):
+    actor = PromptedActor(prompt_version="v31")
     prior_allowed = ("examine cookbook", "open fridge")
     actor.choose_action(AgentView("old room", "Prepare the meal.", prior_allowed, 10, 2),
                         "kitchen", FakeModel(actions=("examine cookbook",)))
@@ -203,6 +203,9 @@ def test_scripted_success_is_completed_but_remains_an_integration_fixture(tmp_pa
     path = Path(__file__).resolve().parents[1] / "artifacts/s1/seed-0-cheap.jsonl"
     records = [json.loads(line) for line in path.read_text().splitlines()]
     actions = [r["action"] for r in records if r["event"] == "step"]
+    # The v31 preparation review confirms the same scripted proposal.
+    actions = [response for action in actions
+               for response in ([action, action] if action == "prepare meal" else [action])]
     result, _ = execute(tmp_path, EpisodeConfig(action_budget=17), model=FakeModel(actions=actions))
     assert result["kind"] == "integration_fixture" and result["status"] == "completed"
     assert result["success"] is True and result["score"] == 1.0
@@ -232,7 +235,7 @@ def test_mismatched_components_are_rejected_before_starting_game(tmp_path):
             run_episode(config, env, PromptedActor(), FakeMemory(), FakeModel(), output_dir=tmp_path)
     with CookingWorldEnvironment(action_budget=6) as env:
         with pytest.raises(ValueError, match="strategy"):
-            run_episode(config, env, PromptedActor(), FakeMemory("hybrid"), FakeModel(), output_dir=tmp_path)
+            run_episode(config, env, PromptedActor(), FakeMemory("structured"), FakeModel(), output_dir=tmp_path)
     assert not list(tmp_path.iterdir())
 
 

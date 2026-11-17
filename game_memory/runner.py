@@ -14,7 +14,7 @@ import time
 from typing import Sequence
 import uuid
 
-from .components import (ACTOR_GUARD_FAILURE_PREFIX, Actor, Generation, MemoryContext,
+from .components import (Actor, Generation, MemoryContext,
                          MemoryStrategy, Message, Model)
 from .contracts import CookingWorldConfig
 from .environment import CookingWorldEnvironment
@@ -24,7 +24,8 @@ def source_digest(repo: Path) -> str:
     """Fingerprint the executable Python and dependency/protocol files."""
     paths = sorted((*((repo / "game_memory").glob("*.py")),
                     repo / "requirements.txt", repo / "requirements-model.txt",
-                    repo / "AGENTS.md", repo / "docs" / "experiment-3x2-protocol.md"))
+                    repo / "pytest.ini",
+                    repo / "AGENTS.md", repo / "docs" / "minimal-core.md"))
     digest = sha256()
     for path in paths:
         digest.update(str(path.relative_to(repo)).encode() + b"\0")
@@ -62,7 +63,7 @@ class EpisodeConfig:
         # errors, rather than evidence that an agent failed at the task.
         if type(self.seed) is not int or not 0 <= self.seed <= 2_147_483_647:
             raise ValueError("invalid seed")
-        if self.strategy not in {"prose", "structured", "hybrid", "full_history"}:
+        if self.strategy not in {"prose", "structured", "full_history"}:
             raise ValueError("unknown memory strategy")
         if type(self.recheck_cost) is not int or self.recheck_cost not in {2, 5}:
             raise ValueError("recheck_cost must be 2 or 5")
@@ -136,6 +137,44 @@ class _LoggedModel:
         self._emit("model_response", step=request["step"], purpose=purpose, **asdict(result))
         return result
 
+    def score_choices(self, messages: Sequence[Message], *, labels: Sequence[str]) -> Generation:
+        # Record the request before calling the model, so a failed call still
+        # leaves its input and purpose in the trace. Tuple fixes message order.
+        purpose = "action"
+        labels = tuple(labels)
+        messages = tuple(messages)
+        request = {"step": self._step_number(), "purpose": purpose,
+                   "messages": [asdict(m) for m in messages],
+                   "inference_mode": "legal_label_argmax_v1", "labels": list(labels)}
+        self._emit("model_request", **request)
+        try:
+            result = self._model.score_choices(messages, labels=labels)
+            if not isinstance(result, Generation):
+                raise TypeError("model must return a Generation")
+        except Exception as error:
+            # A failed request may have consumed resources without returning
+            # usage. Keep known totals, but mark them incomplete instead of zero.
+            self.usage_complete = False
+            self._emit("model_error", step=request["step"], purpose=purpose,
+                       error_type=type(error).__name__, error_message=str(error))
+            raise
+        # Aggregate all successful calls, including any action/memory repairs.
+        # Per-purpose totals separate acting cost from memory-maintenance cost.
+        self.input_tokens += result.input_tokens
+        self.output_tokens += result.output_tokens
+        self.elapsed_seconds += result.elapsed_seconds
+        totals = self.by_purpose.setdefault(purpose, {
+            "calls": 0, "input_tokens": 0, "output_tokens": 0, "elapsed_seconds": 0.0
+        })
+        totals["calls"] += 1
+        totals["input_tokens"] += result.input_tokens
+        totals["output_tokens"] += result.output_tokens
+        totals["elapsed_seconds"] += result.elapsed_seconds
+        self._emit("model_response", step=request["step"], purpose=purpose, **asdict(result))
+        if result.output_tokens != 1:
+            raise ValueError("choice scoring must report one decision token")
+        return result
+
 
 def run_episode(
     config: EpisodeConfig,
@@ -163,16 +202,12 @@ def run_episode(
         raise ValueError("environment costs/budget do not match episode configuration")
     if memory.metadata.get("strategy") != config.strategy:
         raise ValueError("memory strategy does not match episode configuration")
-    if actor.metadata.get("requires_unlimited_inventory") and config.game.limit_inventory_size:
-        raise ValueError("mechanics prompt requires unlimited inventory")
     full_history = config.strategy == "full_history"
-    if full_history != (actor.metadata.get("context_mode") == "full_history"):
+    expected_mode = "full_history" if full_history else "bounded_memory"
+    if actor.metadata.get("context_mode") != expected_mode:
         raise ValueError("actor context mode does not match episode configuration")
     if full_history and memory.metadata.get("diagnostic_only") is not True:
         raise ValueError("full history requires an explicitly diagnostic archive")
-    reset_actor = getattr(actor, "reset_episode_state", None)
-    if callable(reset_actor):
-        reset_actor()
     # Copy metadata into JSON-native values (e.g. tuple -> list). This keeps the
     # returned result identical in shape to the result read back from disk.
     components = json.loads(json.dumps({
@@ -199,7 +234,6 @@ def run_episode(
     phase = "initialization"  # Identifies where an exception occurred.
     error_data = None
     outcome = "error"  # Only a valid game ending below changes this to completed.
-    policy_termination_reason = None
     reset_complete = False
     source = source_metadata()
 
@@ -269,12 +303,6 @@ def run_episode(
                 step += 1
                 phase = "action_generation"
                 action = actor.choose_action(view, rendered, logged)
-                if action.startswith(ACTOR_GUARD_FAILURE_PREFIX):
-                    policy_termination_reason = "actor_guard_failure"
-                    emit("actor_guard_failure", step=step, output=action,
-                         observation=view.observation, budget_remaining=view.budget_remaining)
-                    outcome = "completed"
-                    break
                 phase = "environment_step"
                 # 4. The wrapper alone executes actions, charges game-budget
                 # units, and decides success/failure/budget exhaustion.
@@ -311,9 +339,9 @@ def run_episode(
             "components": components,
             "source": source,
             "protocol_id": protocol_id,
-            "success": (False if policy_termination_reason else last.success)
+            "success": last.success
                        if outcome == "completed" else None,
-            "failure": (False if policy_termination_reason else last.failure)
+            "failure": last.failure
                        if outcome == "completed" else None,
             "score": last.score if last else None,
             "score_raw": last.score_raw if last else None,
@@ -327,8 +355,7 @@ def run_episode(
             "usage_complete": logged.usage_complete,
             "usage_by_purpose": logged.by_purpose,
             "runtime_seconds": time.perf_counter() - started,
-            "termination_reason": policy_termination_reason if policy_termination_reason else
-                                  last.termination_reason if outcome == "completed"
+            "termination_reason": last.termination_reason if outcome == "completed"
                                   else "infrastructure_error",
             "error": error_data,
         }

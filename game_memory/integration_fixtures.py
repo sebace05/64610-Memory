@@ -25,6 +25,25 @@ class FakeModel:
         # Deliberately cheap placeholder. Real backends must use their tokenizer.
         return len(text.split())
 
+    def score_choices(self, messages: Sequence[Message], *, labels: Sequence[str]) -> Generation:
+        labels = tuple(labels)
+        if not labels or len(set(labels)) != len(labels):
+            raise ValueError("fixture choices must be nonempty and unique")
+        n = len(labels)
+        return Generation(labels[0], sum(self.count_tokens(m.content) for m in messages), 1, 0.0, {
+            "inference_mode": "legal_label_argmax_v1", "generation_called": False,
+            "labels": list(labels), "label_token_ids": list(range(n)),
+            "candidate_logits": [0.0] * n, "conditional_probabilities": [1.0 / n] * n,
+            "selected_label": labels[0], "selected_token_id": 0,
+            "selection_rule": "argmax", "tie_break": "first_in_supplied_order",
+            "finish_reason": "choice", "decision_token_count": 1,
+            "rendered_prompt_sha256": None, "prompt_hash_evidence": "unavailable_fixture",
+            "scoring_evidence": "synthetic_fixture", "is_fake": True,
+            "token_accounting": "synthetic_fixture_ids_and_whitespace_counts_not_Qwen",
+            "latency_scope": "synthetic_fixture_zero_not_measured",
+            "peak_cuda_allocated_bytes": None,
+        })
+
     def generate(self, messages: Sequence[Message], *, purpose: str) -> Generation:
         if purpose in {"action", "action_review", "action_repair"}:
             text = json.dumps({"action": next(self._actions, "look around")})
@@ -37,9 +56,6 @@ class FakeModel:
                 text = note
             elif payload["strategy"] == "structured":
                 text = json.dumps({"last_action": payload["action"]}, sort_keys=True)
-            else:
-                text = json.dumps({"prose": note, "structured": {"last_action": payload["action"]}},
-                                  sort_keys=True)
         else:
             raise ValueError(f"unsupported fake-model purpose: {purpose}")
         # Counts are synthetic and latency is a placeholder zero. The is_fake
@@ -52,7 +68,7 @@ class FakeMemory:
     """Exercises interfaces/rendering only; does not retain useful recipe facts."""
 
     def __init__(self, strategy: str = "prose") -> None:
-        if strategy not in {"prose", "structured", "hybrid"}:
+        if strategy not in {"prose", "structured"}:
             raise ValueError("unknown strategy")
         self.strategy = strategy
 

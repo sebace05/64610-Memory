@@ -11,7 +11,9 @@ from typing import Protocol, Sequence
 from .contracts import AgentView
 
 
-ACTOR_GUARD_FAILURE_PREFIX = "[ACTOR_GUARD_FAILURE]"
+# Trace identifiers shared with the independent auditor; these are names only.
+FINALIZATION_REPAIR_POLICY = "exclude_rejected_shared_finalization_v2"
+
 
 
 @dataclass(frozen=True)
@@ -61,6 +63,13 @@ class Model(Protocol):
         ...
 
 
+class ChoiceModel(Model, Protocol):
+    """Optional action-only scoring capability; generate fixtures need not implement it."""
+
+    def score_choices(self, messages: Sequence[Message], *, labels: Sequence[str]) -> Generation:
+        ...
+
+
 @dataclass(frozen=True)
 class MemoryContext:
     """Public task settings for the writer; no scores, game object, or history."""
@@ -85,7 +94,7 @@ class MemoryStrategy(Protocol):
 
     @property
     def metadata(self) -> dict:
-        """Include strategy (prose/structured/hybrid), version, and is_fake."""
+        """Include strategy (full_history/prose/structured), version, and is_fake."""
         ...
 
     def empty(self) -> str:

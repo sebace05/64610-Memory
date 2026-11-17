@@ -1,5 +1,10 @@
 # Friday MVP: the next checkpoint
 
+Historical checkpoint instructions. For the current v31/v17 configuration and
+maintenance source boundary, see [the workflow guide](workflow-maintenance-2026-11-16.md).
+Restore the saved snapshot for frozen launchers; current maintenance source does
+not share their historical digest.
+
 Use one entry point: [qwen_colab.ipynb](../notebooks/qwen_colab.ipynb).
 It runs **one separately labeled one-room/one-ingredient full-history test on seed 0**.
 Qwen stays loaded for explicitly chosen follow-up runs in the same live runtime.

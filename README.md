@@ -1,61 +1,56 @@
 # 64610-Memory
 
-MIT 6.4610 research project: how does the cost of recovering forgotten recipe
-information affect prose versus structured JSON memory in a CookingWorld agent?
+CookingWorld with a Qwen actor and three memory conditions: full public history,
+model-written prose, and model-written structured JSON. The active workflow is the
+[v31-preserving minimal core](docs/minimal-core.md). New real inference requires
+separate authorization; documented real-model commands are prepared only.
 
-## Start here
-
-Open **[the notebook in Colab](https://colab.research.google.com/github/sebace05/64610-Memory/blob/main/notebooks/qwen_colab.ipynb)**,
-select T4, and choose **Runtime → Run all**. Authorize Drive if prompted.
-The launcher resolves and records the development commit automatically; set
-`REPO_REF` to a full SHA for a frozen run. See [the checkpoint guide](docs/qwen-checkpoint.md).
-It currently selects a one-room/one-ingredient full-history capability check and
-keeps Qwen loaded between explicitly chosen development runs.
-
-Local corrected-greedy runs use the RTX 5070 Ti. Two full-history Qwen 4B
-checks succeeded. The original eight-condition bounded-memory MVP exhausted
-the budget in every cell. A later versioned development replay (actor v29,
-memory v16) completed the same prose/JSON × prices 2/5 × seeds 0/1 grid:
-prose won all four, while JSON ended in four gameplay losses. None of these
-eight runs exhausted the budget or repeated an action on consecutive turns;
-all traces passed audit. The actor keeps legal repeat actions available and
-uses model-generated reviews for specific action errors. See the
-[measured results](docs/mvp-results.md). Hybrid, large evaluations, dashboards,
-and batch/resume remain deferred.
-
-## Code map
-
-| Purpose | Files in `game_memory/` |
-| --- | --- |
-| Run one game | `runner.py`, `environment.py`, `actor.py` |
-| Shared inputs and interfaces | `contracts.py`, `components.py` |
-| Model inference and live Colab session | `transformers_model.py`, `colab_session.py` |
-| Memory strategies and diagnostic history | `memory.py`, `diagnostics.py` |
-| Commands, manifests, and launch logs | `run_episode.py`, `pilot.py` |
-| Read saved evidence | `inspect_episode.py`, `summarize_diagnostics.py` |
-| Scripted integration fixtures | `integration_fixtures.py` (simulator checks live in `tests/`) |
-
-## Local checks
-
-Requires Python 3.10+ and Java. GPU packages are separate from base dependencies.
+The canonical gameplay command is:
 
 ```sh
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m game_memory.run_episode --help
+```
+
+Use `--strategy full_history`, `prose`, or `structured`; v31 is the only actor and
+the default for real and fixture runs. Each invocation enforces an immutable
+manifest through `prepare_pilot`. `--prepare-only` validates without weights or
+gameplay. The guide gives exact future settings, fresh condition directories, and
+startup stdout/stderr/exit-status capture requirements. Linux/A10 is the current
+known execution target.
+
+Prose/structured stored memory counts its entire rendered text against the memory
+allowance. Full history retains actual public records without a writer and is
+exempt from that allowance. The complete model-context limit, generated-output
+caps, game action budget, and cookbook-reread cost are separate constraints.
+Memory is text supplied to the model, not weight training. Comparing generated
+formats includes both writing and subsequent use.
+
+Read-only reporting remains separate:
+
+```sh
+.venv/bin/python -m game_memory.summarize_diagnostics PATH_TO_CONDITION
 PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 .venv/bin/python -m pytest -q
 ```
 
-Model-adapter checks require `requirements-model.txt`; they skip when optional
-packages are absent. Production Qwen runs require Colab GPU checks in the guide.
-The optional local RTX 5070 Ti setup and launcher are documented in the [Qwen checkpoint guide](docs/qwen-checkpoint.md#run-the-same-checkpoint-locally-on-an-rtx-5070-ti).
+Reports include per-turn behavior, errors, memory decisions and inference usage.
+Fixtures are excluded by default and never establish Qwen capability. Optional
+model-adapter tests skip when their already-installed dependencies are absent.
+The unchanged environment requires compatible Java; this cleanup makes no runtime
+or dependency changes.
 
-## Evidence and references
+`game_memory/` contains the actor, environment/contracts, model backend, memory
+writers/archive, runner, gameplay CLI, manifest helper, report and test fixtures.
+There is no cloud launcher or separate pilot/inspection CLI.
 
-Keep new run logs in Drive or local `artifacts/` (ignored by Git). Existing
-committed fixtures remain tracked; they are simulator/fake-model evidence, not
-memory-comparison results. Keep notebook outputs empty and download trace ZIPs
-separately. Pinned older notebooks still reproduce their original code revisions.
+Previous guides, notebooks, evaluations and diagnostic workflows are historical
+and require the archived source. Their commands are not current instructions.
+The exact dirty starting source and all retired files are verified in
+[the restoration archive](artifacts/minimal-core-cleanup-v1/attempt-20261116-232112/source-before.zip)
+(SHA-256 `e7bb7b42ad4b29a41e446ef29403cc16070cbe78639641112cd151a5e9d03d93`).
+Existing artifacts, manifests, traces, failed gates and handoffs remain untouched.
+The old [history-window checkpoint](docs/history-window-checkpoint.md) retains its
+recorded failed readiness gate; its Phase B is not executed by this cleanup.
 
-- [Environment rules](docs/s1-environment.md), [runner contract](docs/s2-runner.md),
-  [memory policies](docs/p1-memory.md), [actor trace analysis](docs/actor-policy.md).
-- [Original proposal, team task board, and deferred evaluation plan](https://github.com/sebace05/64610-Memory/blob/595cf5ca83912e6ab5d50c36717cd41f342108f5/README.md).
+Experimental opt-in [legal-choice-v1](docs/legal-choice-v1.md) scores single-token
+labels over the complete public legal-action set in full-history mode. V31 remains
+the default; real execution requires separate authorization.
