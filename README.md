@@ -9,6 +9,12 @@ and the new [pretrained-versus-fine-tuned reader proposal](docs/pretrained-vs-fi
 The proposal counts ordinary model errors in accuracy and compares memory schemes
 before and after reader adaptation; it is not an execution authorization.
 
+The next checkpoint implements a [reader diagnostic](docs/reader-diagnostic-v1.md)
+with offline preparation/tests and specifies a [matched reader-training protocol](docs/matched-reader-training-v1.md).
+It tests entity/option order and compares restricted scoring, an independent raw
+forward, and greedy answers. GPU execution and training remain unexecuted and
+require separate authorization.
+
 CookingWorld with a Qwen actor and three memory conditions: full public history,
 model-written prose, and model-written structured JSON. Its preserved workflow is the
 [v31-preserving minimal core](docs/minimal-core.md). New real inference requires

@@ -6,6 +6,13 @@ The implementation and progress handoff are checkpointed in `4a847e1` on
 model-facing prompts, and authorizes no training or real inference. The frozen
 memory-probe-v1 run remains an ended experiment with a failed qualification gate.
 
+**Implementation follow-up:** the [reader diagnostic](reader-diagnostic-v1.md)
+now has offline preparation, execution guards, and tests. The
+[matched training protocol](matched-reader-training-v1.md) narrows the primary
+comparison to reader adaptation at one shared budget. Diagnostic GPU execution
+and the training/evaluation drivers remain unexecuted; no training driver is
+implemented in this checkpoint.
+
 ## Current progress and observed failure
 
 We have implemented the controlled assignment task, bounded prose/JSON writers,
