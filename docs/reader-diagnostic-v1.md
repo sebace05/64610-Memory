@@ -1,7 +1,17 @@
-# Reader diagnostic v1
+# Reader diagnostic v1 (integration revision 1.1)
 
-Status: implementation and offline tests only. No new inference, downloads,
-training, deployment, or continuation of memory-probe-v1 is authorized. Code:
+The first authorized GPU attempt loaded Qwen and completed two agreeing scoring
+forwards, then failed before generation because the diagnostic supplied a purpose
+name outside the backend's accepted contract. Revision 1.1 uses the existing
+`action` generation purpose and the configured 32-token cap. An offline regression
+now exercises the real adapter's purpose-validation branch without model inference.
+Cases, messages, permutations, scoring, and extraction rules are unchanged. The
+failed attempt/package remain preserved; the corrected attempt uses a fresh
+versioned manifest and output directory. Standing project GPU authorization is
+recorded in README; no repeated GPU permission is needed.
+
+Status: GPU integration revision 1.1 under standing project GPU authorization.
+The ended memory-probe-v1 experiment remains unchanged. Code:
 [reader_diagnostic.py](../game_memory/reader_diagnostic.py). The matched training
 comparison is specified separately in [its protocol](matched-reader-training-v1.md).
 
@@ -100,7 +110,7 @@ inputs. Preparation creates a fresh immutable directory with cases, manifest,
 source hashes/archive, counts, and an authorization template. It refuses an
 existing directory. The template's warning prefix is rejected as authorization.
 
-**Proposed GPU worker entrypoint, NOT executed or authorized:** in an already
+**GPU worker entrypoint:** in an already
 provisioned matching A10/A10G environment, with the existing read-only cache at
 `/cache/huggingface` and a separately reviewed source/package transfer:
 
@@ -112,8 +122,9 @@ timeout --signal=TERM --kill-after=30s 1800s \
   --authorization /results/reader-diagnostic-v1/authorization.txt
 ```
 
-The authorization must name the exact manifest digest and request ceiling; it
-must be separately supplied after approval, not copied by this preparation task.
+The launcher records the standing authorization against the exact manifest digest
+and request ceiling; repeated user approval is not needed. The warning template
+is still rejected as an execution record.
 The caller must capture startup stdout/stderr and the original process/timeout
 exit status in fresh files, collect all partial evidence, commit the results
 volume, and verify shutdown of only that attempt's App. The worker fsyncs local
@@ -155,5 +166,10 @@ logging regression. They remain unverified checks, not passes. No dependencies
 were installed. Pure fixture tests cover order/fact invariance, exact historical
 prompts when evidence is present, reconstruction provenance, extraction,
 independent-score disagreement, partial failures, accounting, reporting, and
-authorization rejection. Actual cached-Qwen preflight and diagnostic inference
-remain unexecuted.
+authorization rejection. That offline checkpoint predates the first GPU attempt
+described above; the complete corrected diagnostic remains pending.
+
+After the integration fix, the full suite passed **519 tests with 26 skips** in
+24.00 s (exit 0), including the new backend-contract regression. One upstream
+TextWorldExpress Java cleanup warning was retained. Model-facing inputs and the
+312-request ceiling were not changed to obtain the pass.

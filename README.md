@@ -1,24 +1,35 @@
 # 64610-Memory
 
-**Progress, November 17:** the controlled memory harness and Modal transport are
+**Standing GPU authorization, November 17:** the user authorized GPU runs for this
+project. Proceed with bounded, versioned experiments without requesting GPU
+permission again. This supersedes older per-run authorization wording; preserve
+each run's settings, resource ceilings, evidence, exit status, and shutdown.
+
+**Latest GPU result, November 17:** reader diagnostic v1.1 completed 312 model
+requests on A10G. Production/reference scores matched exactly on all 104 distinct
+prompts. Q00's JSON errors followed green across option labels and changed with
+entity order. Both diagnostic Apps are verified stopped. See the
+[results, integration fix, and evidence](docs/reader-diagnostic-results-2026-11-17.md).
+
+**Earlier checkpoint:** the controlled memory harness and Modal transport are
 implemented. The first real run stopped at its frozen reader gate: 15/16 full
 history, 16/16 sufficient prose, and 13/16 sufficient JSON. No writer/budget pilot
 or task-specific fine-tuning has run. Read the
 [implementation and verification handoff](docs/implementation-status-handoff-2026-11-17.md)
 and the new [pretrained-versus-fine-tuned reader proposal](docs/pretrained-vs-finetuned-memory-proposal.md).
 The proposal counts ordinary model errors in accuracy and compares memory schemes
-before and after reader adaptation; it is not an execution authorization.
+before and after reader adaptation.
 
-The next checkpoint implements a [reader diagnostic](docs/reader-diagnostic-v1.md)
+The implemented checkpoint includes a [reader diagnostic](docs/reader-diagnostic-v1.md)
 with offline preparation/tests and specifies a [matched reader-training protocol](docs/matched-reader-training-v1.md).
 It tests entity/option order and compares restricted scoring, an independent raw
-forward, and greedy answers. GPU execution and training remain unexecuted and
-require separate authorization.
+forward, and greedy answers. GPU diagnosis has completed; reader fine-tuning and
+the matched training comparison remain future implementation work.
 
 CookingWorld with a Qwen actor and three memory conditions: full public history,
 model-written prose, and model-written structured JSON. Its preserved workflow is the
-[v31-preserving minimal core](docs/minimal-core.md). New real inference requires
-separate authorization; documented real-model commands are prepared only.
+[v31-preserving minimal core](docs/minimal-core.md). Follow the current diagnostic
+workflow above; older CookingWorld commands retain their historical settings.
 
 The canonical gameplay command is:
 
@@ -69,4 +80,4 @@ recorded failed readiness gate; its Phase B is not executed by this cleanup.
 
 Experimental opt-in [legal-choice-v1](docs/legal-choice-v1.md) scores single-token
 labels over the complete public legal-action set in full-history mode. V31 remains
-the default; real execution requires separate authorization.
+the default CookingWorld actor.

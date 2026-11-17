@@ -7,6 +7,7 @@ from pathlib import Path
 import re
 import subprocess
 import sys
+from types import ModuleType, SimpleNamespace
 
 import pytest
 
@@ -244,6 +245,38 @@ def test_unparseable_generation_is_retained_and_counts_as_wrong(package, tmp_pat
     generated = [r for r in result["assessments"] if r["method"] == "generated"]
     assert all(r["unparseable"] and not r["correct"] and r["raw_answer"] == "D. green"
                for r in generated)
+
+
+def test_diagnostic_generation_crosses_the_real_backend_purpose_contract_offline(package, tmp_path, monkeypatch):
+    from game_memory.transformers_model import TransformersConfig, TransformersModel
+
+    class ReachedTokenizer(Exception):
+        pass
+
+    def stop_before_tensor_work(*args, **kwargs):
+        raise ReachedTokenizer
+
+    # Exercise the actual adapter's validation branch without loading optional
+    # libraries, constructing weights, or performing a forward/generation.
+    monkeypatch.setitem(sys.modules, "torch", ModuleType("torch"))
+    transformers = ModuleType("transformers")
+    transformers.GenerationConfig = object
+    monkeypatch.setitem(sys.modules, "transformers", transformers)
+    adapter = object.__new__(TransformersModel)
+    adapter.config = TransformersConfig(revision=mp.MODEL_REVISION, action_max_new_tokens=32)
+    adapter._tokenizer = SimpleNamespace(apply_chat_template=stop_before_tensor_work)
+
+    class ContractModel(FixtureModel):
+        def generate(self, messages, *, purpose):
+            try:
+                TransformersModel.generate(adapter, messages, purpose=purpose)
+            except ReachedTokenizer:
+                return super().generate(messages, purpose=purpose)
+            pytest.fail("backend did not reach the tokenizer boundary")
+
+    result = rd.run(package, tmp_path / "backend-contract", loader=lambda *_: (
+        ContractModel(), FixtureModel()))
+    assert result["status"]["complete"] and result["physical_responses"] == 312
 
 
 def test_scoring_disagreement_stops_before_generation_and_preserves_raw_evidence(package, tmp_path):

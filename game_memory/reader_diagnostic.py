@@ -1,4 +1,4 @@
-"""reader-diagnostic-v1: offline preparation/reporting; opt-in cached GPU execution.
+"""reader-diagnostic-v1.1: offline preparation/reporting; opt-in cached GPU execution.
 
 The v1 experiment is imported unchanged. No optional inference packages are
 imported and no model is constructed until the authorized run boundary.
@@ -21,7 +21,7 @@ from . import memory_probe_modal as transport
 from .components import Generation, Message
 from .runner import _LoggedModel
 
-VERSION = "reader-diagnostic-v1"
+VERSION = "reader-diagnostic-v1.1"
 # Frozen before diagnostic inference: four focal siblings, two controls per stratum.
 SELECTION = (("Q00", 0), ("Q00", 1), ("Q00", 2), ("Q00", 3),
              ("Q01", 0), ("Q01", 1), ("Q02", 2), ("Q02", 3))
@@ -373,7 +373,9 @@ def run(package, output, *, loader, clock=time.monotonic):
                         before_call(method, case)
                         sources[method] = requests - 1
                         if method == "generated":
-                            result = logged.generate(_messages(case), purpose="reader_diagnostic_generation")
+                            # The unchanged backend accepts action/memory purposes only.
+                            # The outer method tag distinguishes generated reader answers.
+                            result = logged.generate(_messages(case), purpose="action")
                         else:
                             result = (logged if method == "restricted" else other).score_choices(
                                 _messages(case), labels=mp.LABELS)

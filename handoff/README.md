@@ -1,5 +1,27 @@
 # Evidence for the Modal handoff
 
+**November 17 reader diagnostic:**
+[`reader-diagnostic-20261117-evidence.zip`](reader-diagnostic-20261117-evidence.zip)
+contains the failed and corrected diagnostic attempts plus the prior
+memory-probe-v1 evidence used for historical prompt verification. Read
+[the results](../docs/reader-diagnostic-results-2026-11-17.md) first. The archive
+contains source packages, manifests, raw requests/scores/answers, accounting,
+authorization records, errors, audits, and shutdown inventories. It contains no
+model weights or environments. GPU runs have standing user authorization.
+
+Before restoring it, verify the adjacent SHA-256, ZIP CRCs, and every entry against
+`handoff/reader-diagnostic-transfer-manifest.json` inside the archive. Restore only
+the `artifacts/` entries: reject absolute/parent-traversal paths, validate the full
+selection first, skip byte-identical existing files, and stop on any conflict.
+Never overwrite evidence or overlay archived source onto the live repository.
+The included per-file manifest describes this selected transfer; older preservation
+ledgers may also reference CookingWorld files outside the selection.
+
+The source and narrative are committed normally; raw artifacts stay Git-ignored
+after restoration. Both diagnostic Apps were verified stopped with zero tasks.
+
+## Historical November 16 handoff
+
 **Laptop continuation, November 16:** the originally requested launcher is now
 implemented and the single A10 JSON seed-1 pilot succeeded. See
 [`docs/modal-calibration.md`](../docs/modal-calibration.md) for the current

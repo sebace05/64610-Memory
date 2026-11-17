@@ -9,9 +9,12 @@ memory-probe-v1 run remains an ended experiment with a failed qualification gate
 **Implementation follow-up:** the [reader diagnostic](reader-diagnostic-v1.md)
 now has offline preparation, execution guards, and tests. The
 [matched training protocol](matched-reader-training-v1.md) narrows the primary
-comparison to reader adaptation at one shared budget. Diagnostic GPU execution
-and the training/evaluation drivers remain unexecuted; no training driver is
-implemented in this checkpoint.
+comparison to reader adaptation at one shared budget. The
+[GPU diagnostic results](reader-diagnostic-results-2026-11-17.md) now verify the
+scoring path and preserve an initial integration failure and its correction.
+No training/evaluation driver is implemented in this checkpoint. Standing project
+GPU authorization is recorded in README; older authorization language below
+describes the original proposal snapshot.
 
 ## Current progress and observed failure
 
