@@ -1,7 +1,16 @@
 # 64610-Memory
 
+**Progress, November 17:** the controlled memory harness and Modal transport are
+implemented. The first real run stopped at its frozen reader gate: 15/16 full
+history, 16/16 sufficient prose, and 13/16 sufficient JSON. No writer/budget pilot
+or task-specific fine-tuning has run. Read the
+[implementation and verification handoff](docs/implementation-status-handoff-2026-11-17.md)
+and the new [pretrained-versus-fine-tuned reader proposal](docs/pretrained-vs-finetuned-memory-proposal.md).
+The proposal counts ordinary model errors in accuracy and compares memory schemes
+before and after reader adaptation; it is not an execution authorization.
+
 CookingWorld with a Qwen actor and three memory conditions: full public history,
-model-written prose, and model-written structured JSON. The active workflow is the
+model-written prose, and model-written structured JSON. Its preserved workflow is the
 [v31-preserving minimal core](docs/minimal-core.md). New real inference requires
 separate authorization; documented real-model commands are prepared only.
 
@@ -40,7 +49,8 @@ or dependency changes.
 
 `game_memory/` contains the actor, environment/contracts, model backend, memory
 writers/archive, runner, gameplay CLI, manifest helper, report and test fixtures.
-There is no cloud launcher or separate pilot/inspection CLI.
+CookingWorld has no separate pilot/inspection CLI. The controlled study and its
+Modal transport are described in the progress handoff above.
 
 Previous guides, notebooks, evaluations and diagnostic workflows are historical
 and require the archived source. Their commands are not current instructions.

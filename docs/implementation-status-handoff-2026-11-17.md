@@ -2,7 +2,9 @@
 
 **Snapshot: November 17, 2026. Audience: teammate preparing the project progress report.**
 
-This document summarizes the implementation, verification methods, preliminary diagnostics, current obstacles, and proposed next steps. It covers work since commit `18ade457aef86bf907c0877db9432d318095bfbc` on November 16, 2026, titled “Preserve v17/v30 calibration and Modal laptop handoff.” The current branch is `codex/modal-calibration-handoff`. The implementation described here remains in the uncommitted working tree.
+This document summarizes the implementation, verification methods, preliminary diagnostics, current obstacles, and proposed next steps. It covers work since commit `18ade457aef86bf907c0877db9432d318095bfbc` on November 16, 2026, titled “Preserve v17/v30 calibration and Modal laptop handoff.” The current branch is `codex/modal-calibration-handoff`. The implementation and original handoff are checkpointed in `4a847e1`.
+
+**Follow-up proposal, November 17:** [compare memory schemes before and after reader fine-tuning](pretrained-vs-finetuned-memory-proposal.md), initially holding the writer fixed. This broader system-accuracy question counts ordinary reader errors as outcomes; high reader accuracy is not a universal prerequisite for that comparison. It develops an alternative to the earlier worked-example-only next step below. No task-specific fine-tuning, new inference, or writer pilot has been performed or authorized by publishing the proposal.
 
 **Current position:** we have implemented a controlled memory-research harness, tested its software behavior, and exercised its tokenizer, reader, logging, persistence, collection, and shutdown paths on Modal. The first authorized run stopped correctly at reader qualification. The primary comparison of model-written prose versus JSON under different memory budgets has **not run**.
 
@@ -219,11 +221,11 @@ Primary sources: [S1 execution report](../artifacts/memory-probe-v1/s1-execution
 
 ## 7. Current obstacles and next steps
 
-The immediate research obstacle is that the frozen reader did not qualify with complete JSON evidence. CookingWorld had already shown that decision errors could occur despite retained public facts. A memory comparison needs a qualified baseline so a reader failure is not automatically attributed to compression or retention.
+The frozen reader did not qualify with complete JSON evidence, ending v1 under its declared gate. CookingWorld had already shown that decision errors could occur despite retained public facts. Reader competence controls help prevent attributing every wrong answer to compression or retention. The follow-up training-comparison proposal instead measures end-to-end accuracy with those reader errors included, while preserving controls and notebook inspection for interpretation.
 
 The controlled-study writers and planned analysis are implemented and fixture-tested, but their real behavior remains unknown. We do not yet know generated-note factual quality, deterioration over twelve rewrites, the appropriate lower allowance, the format-by-budget interaction, or writer-pilot runtime. No task training or evaluation of a replacement model has been performed.
 
-Proposed next work, **not implemented or authorized**:
+Earlier proposed next work at the original handoff, **not implemented or authorized**; see the follow-up proposal above for the subsequent training-comparison direction:
 
 1. Preserve v1 as an ended protocol with a failed qualification gate. Update the active-status documentation and checkpoint the accepted source without altering frozen historical packages/results.
 2. Specify one reader-only v2 intervention. The current recommendation is one fixed worked example demonstrating lookup and label selection, with the same Qwen checkpoint and unchanged qualification threshold. Use fresh, frozen qualification families; observed Q0 cases are development evidence.
@@ -261,9 +263,9 @@ Derived Modal image: im-0dJq04p9gbWjNlIMbSkdOm
 
 The manifest digest uses the implementation's specified JSON serialization convention. Source archives and file ledgers allow checks against the actual frozen bytes even while the working tree evolves. During review, all original 1,879 pre-transport files, accepted packet files, and frozen source matched their saved hashes; the execution ledger covered 84 files and matched. Those counts describe the corresponding historical ledgers, not the total current repository size.
 
-`artifacts/` is Git-ignored. A fresh clone at the last commit will not contain the current uncommitted implementation or these raw evidence packets. Sharing this Markdown alone provides the narrative but not the underlying files: provide the current source and selected hashed evidence separately if the teammate needs reproducibility. Relative links resolve within that repository/evidence layout.
+`artifacts/` is Git-ignored. The implementation and handoff are tracked as of `4a847e1`, but a fresh clone does not supply these raw evidence packets. The committed Markdown provides the narrative; selected hashed evidence must be transferred separately if the teammate needs reproducibility. Relative artifact links resolve only when those files are present in the same repository/evidence layout.
 
-README and AGENTS checkpoint descriptions still reference the earlier CookingWorld minimal core. Use the frozen probe specification and dated execution report to identify the latest research status; older “current checkpoint” wording should not be read as a new authorization.
+README now links this handoff and the follow-up proposal. AGENTS retains the earlier CookingWorld minimal-core checkpoint wording within the frozen source boundary. Use the probe specification and dated execution report for the completed study's status, and the follow-up proposal for the new direction; none supplies new execution authorization.
 
 ## 9. Guidance for writing the progress report
 
