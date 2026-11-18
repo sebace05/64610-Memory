@@ -19,14 +19,7 @@ All 94 generations are accounted for; all Apps are stopped.
 Use `.venv/bin/python`. Standing GPU authorization is in the README. Explicit
 `gpu="A10G"` worked; generic `A10` sometimes allocated another device.
 
-Suggested continuation prompt:
-
-> Work on `codex/long-context-paper-memory`. Read the paper pilot results and
-> protocol, then inspect the saved notes. Start with the small P02 JSON diagnostic:
-> compare the original conceptualization question with an explicit main AUI/Control
-> question and a supplied task-label mapping, keeping the notebook fixed. Then
-> prepare a larger stock-model study with paper-specific facts across sections and
-> a generous shared memory allowance chosen on development papers. Keep questions
-> hidden from writers and match papers/questions across formats. Reuse the existing
-> code, version new settings, test offline, and preserve raw results. Fine-tuning
-> remains a later option.
+Next: follow the [experiment plan and copyable continuation
+prompt](paper-memory-next-experiments.md). It starts with the P02 diagnostic and
+a 20-paper baseline at a generous shared allowance. Length and tighter-budget
+sweeps follow as separate experiments.

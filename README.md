@@ -9,8 +9,9 @@ each run's settings, resource ceilings, evidence, exit status, and shutdown.
 stock Qwen 4B reads real papers in chunks and maintains a prose or JSON notebook,
 then answers factual questions. Both notebooks have a 2,048-token allowance;
 full-paper, evidence-only and no-context conditions provide references. Read the
-[pilot protocol](docs/paper-memory-v1.md) and [short handoff with a continuation
-prompt](docs/paper-memory-handoff.md).
+[pilot protocol](docs/paper-memory-v1.md) and [short handoff](docs/paper-memory-handoff.md).
+The [next-experiment handoff](docs/paper-memory-next-experiments.md) details the
+larger baseline, later length/budget tests, and a copyable agent prompt.
 
 **Paper pilot completed, November 18:** on three papers and nine factual questions,
 strict accuracy was **9/9 full paper, 5/9 prose, 6/9 JSON**. One JSON miss is
