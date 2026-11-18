@@ -1,41 +1,41 @@
 # Reader study handoff
 
 Repository: `sebace05/64610-Memory`. Branch: `codex/modal-calibration-handoff`.
-Results and raw evidence are pushed through commit `7cb464c`.
 
 Our question: does reader fine-tuning change how well Qwen uses model-written
 plain-text versus JSON memory? Keep the writer frozen and give both readers
-identical saved notes. We are checking the stock reader before training.
+identical saved notes. The stock baseline is now complete; training has not run.
 
 The task has eight entities, four destinations, an update and a revocation.
 Each family has four related answer variants. P0 is after the update;
 P12 is after twelve further rewrites.
 
-The completed study tested 160 fresh development families with correct, complete
-notes. Earlier Q00 ablations showed name-specific effects, but no general fix.
+Stock Qwen on the 64 saved C00–C03 writer notes, B=256:
 
-| Names | Plain text accuracy | JSON accuracy |
+| Memory | P0 accuracy | P12 accuracy |
 |---|---:|---:|
-| Current names | 97.97% | 98.28% |
-| Numbered IDs | 99.53% | 98.28% |
+| Plain text | 14/16 — 87.5% | 14/16 — 87.5% |
+| JSON | 15/16 — 93.75% | 15/16 — 93.75% |
 
-IDs fixed 11 JSON errors and introduced 11 others. Overall benefit: 0.78 percentage
-points, 95% interval −0.39 to +2.11. The frozen 2-point rule calls this
-**inconclusive**; keep the generator. Every wrong answer had the correct fact in
-its note; independent scoring checks matched exactly.
+All six wrong answer instances concern `dopum` in C01, despite its correct fact
+being explicit in the note. Other families score 4/4 in each cell. Every queried
+fact survives to P12; other entities still have writer errors. Four development
+families do not establish a general format ranking. Independent checks matched.
 
-Writer calibration saved **64 notes from C00–C03**, both formats at P0/P12.
-The chosen allowance is **B=256 tokens**, largest note 183. Some notes contain
-spelling errors, omissions or conflicting claims. `prose` produced assignment
-lists. Scoring these notes, R/V/E collection and LoRA have not run.
+The largest note is 183 of 256 allowed tokens; `prose` produced assignment lists.
+The earlier 160-family scripted-note study scored about 98% in both formats;
+it used different families, notes and hardware. Numbered IDs did not justify
+changing the generator. R/V/E collection and LoRA have not run.
 
-Latest checks: **599 passed, 26 skipped**; transport: 10 passed. All completed
+Latest checks: **620 passed, 26 skipped**; transport: 10 passed. All completed
 experiment Apps are stopped.
 
-Read the [base-rate results](reader-base-rate-results-2026-11-17.md),
+Read the [new baseline results](stock-memory-eval-results-2026-11-18.md),
 [writer results](writer-collection-results-2026-11-17.md), and
-[matched training protocol](matched-reader-training-v1.md). README's standing
-GPU authorization supersedes older authorization wording.
+[matched training protocol](matched-reader-training-v1.md). The baseline and
+future adapted-reader comparison use actual **NVIDIA A10G**, fixed in
+[v1.1 before inference](stock-memory-eval-v1.1.md). Earlier A10-only placements
+made zero model calls. README's GPU authorization supersedes older wording.
 
 Raw evidence is in committed ZIPs. Follow
 [handoff/README.md](../handoff/README.md) to verify and restore only their
@@ -54,22 +54,22 @@ Copy this prompt into your agent:
 Continue on sebace05/64610-Memory, branch codex/modal-calibration-handoff.
 Read docs/reader-study-handoff.md and its linked results/protocol first.
 
-Implement and test stock-reader scoring of the 64 saved C00–C03 snapshots.
-Reuse game_memory/writer_collection.py's exports/audit, memory_probe.py's prompts,
-transformers_model.py's A–E scoring and the diagnostic/Modal helpers. Use the
-pinned Qwen3-4B-Instruct-2507, FP16, actual NVIDIA A10 and unchanged reader inputs.
+The C00–C03 stock baseline is completed. Next implement writer collection for
+R00–R31 training and V00–V07 validation at B=256, using the frozen splits and
+writer_collection.write_family. The current calibration CLI only runs C; reuse
+its helpers for this next stage. Keep E00–E15 held out.
 
-Before viewing predictions, separately label each note's supported destination
-or insufficient information for missing/unresolved claims. Preserve the exports.
-Report total task accuracy and agreement with note evidence for both formats
-at P0/P12. Count all ordinary errors; inspect writer mistakes versus reader
-mistakes. This is exploratory: four families. The old 15/16 gate does not apply.
+Generate each writer chain once; save literal P0/P12 notebooks and reader inputs.
+Label notes by supplied evidence before reader predictions. Missing/unresolved
+facts support insufficient information; total task accuracy still uses the true
+task answer and counts ordinary errors. Preserve completed families.
 
-Keep the generator. Leave held-out E families unused. Use a fresh, bounded run,
-not a completed launcher. Run relevant tests with .venv/bin/python. Save scores,
-usage, timing and shutdown evidence. GPU authorization is in README; check
-workspace/cache access rather than assuming old machine paths work.
+Record stock validation performance before adaptation. Use the pinned
+Qwen3-4B-Instruct-2507, FP16, actual A10G and existing A–E scorer. Keep identical notes for
+both readers and the writer free of reader adapters. The planned adaptation is
+supervised reader LoRA; its implementation remains future work.
 
-Push changes and a short report to this branch. Recommend whether LoRA is worth
-doing next using the matched-training protocol.
+Use fresh bounded runs, relevant offline tests with .venv/bin/python, and preserve
+raw outputs, usage, timing and shutdown proof. GPU authorization is in README.
+Push changes and a short progress/results report to this branch.
 ```

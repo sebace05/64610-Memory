@@ -1,5 +1,18 @@
 # Evidence for the Modal handoff
 
+**November 18 stock reader on writer-produced memory:**
+[`stock-memory-eval-20261118-evidence.zip`](stock-memory-eval-20261118-evidence.zip)
+contains the 64 saved writer inputs, pre-prediction evidence labels, 192 reader
+forwards, independent checks/repeats, error review, reports, test logs and all
+four setup/execution attempts. Read [the results](../docs/stock-memory-eval-results-2026-11-18.md)
+and [current continuation prompt](../docs/reader-study-handoff.md).
+Verify the adjacent SHA-256, ZIP CRCs and every entry against
+`handoff/stock-memory-eval-transfer-manifest.json` inside the ZIP. Restore only
+`artifacts/` entries after full path/hash checks; skip identical files and stop on
+conflicts. Never overwrite evidence or overlay archived source. No weights,
+environments or credentials are included. V1.1 pins actual A10G; prior failed
+placements made zero model calls. All four Apps are verified stopped.
+
 **November 17 paired reader base-rate study:**
 [`reader-base-rate-20261117-evidence.zip`](reader-base-rate-20261117-evidence.zip)
 contains the frozen 160-family naming comparison, all 2,608 raw scoring forwards,

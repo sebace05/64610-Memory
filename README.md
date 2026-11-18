@@ -8,6 +8,19 @@ each run's settings, resource ceilings, evidence, exit status, and shutdown.
 **Continuing on another machine:** read the [short handoff and copyable agent
 prompt](docs/reader-study-handoff.md).
 
+**Stock reader on actual writer notes completed, November 18:** plain text scored
+**14/16 (87.5%)** and JSON **15/16 (93.75%)**, at both P0 and P12. All six wrong
+answer instances are in C01 and have correct queried facts in their notes.
+The stock baseline now includes both writing and reading; no training has run.
+See the [results and evidence](docs/stock-memory-eval-results-2026-11-18.md).
+The versioned [A10G protocol](docs/stock-memory-eval-v1.1.md) keeps the original
+64 notes/labels. All 192 forwards completed; independent scores/repeats matched
+exactly. Three earlier setup attempts made zero model calls. All four Apps are
+stopped. Offline: 620 passed, 26 skipped; successful transport: 10 passed.
+Next: R/V writer collection and evidence labels for the planned reader LoRA study,
+with stock validation performance recorded first. Four calibration families
+support an exploratory result, not a general format ranking.
+
 **Paired base-rate study completed, November 17:** on 160 fresh development
 families with complete correct notes, stock 4B scored **97.97% prose / 98.28% JSON**
 with current names, versus **99.53% / 98.28%** with fixed numbered IDs. The naming
@@ -17,7 +30,7 @@ the generator. IDs fixed 11 JSON errors and introduced 11 others. See the
 [frozen specification](docs/reader-base-rate-v1.md). All 2,608 forwards completed
 on verified NVIDIA A10; independent scores and repeats matched exactly. Offline
 checks: 599 passed, 26 skipped; transport: 10 passed. The App is verified stopped.
-Next: evaluate the stock reader on the saved writer notes before deciding on LoRA.
+The writer-note baseline above is now complete.
 
 **Name/distractor ablation completed, November 17:** 280 forwards show that specific
 identifiers materially affect Q00 errors. Renaming the queried entity fixes all
