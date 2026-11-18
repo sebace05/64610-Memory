@@ -5,6 +5,12 @@ project. Proceed with bounded, versioned experiments without requesting GPU
 permission again. This supersedes older per-run authorization wording; preserve
 each run's settings, resource ceilings, evidence, exit status, and shutdown.
 
+**Writer collection is implemented:** the [collection guide](docs/writer-collection-v1.md)
+describes fresh disjoint splits, writer-only chains, literal P0/P12 snapshot
+exports, and the fixed 128/256 budget rule. The four-family C00–C03 GPU calibration
+is in progress. Reader training remains a later stage. Offline validation:
+554 tests passed, 26 skipped; the frozen Modal transport passed 10 additional tests.
+
 **Latest GPU result, November 17:** reader diagnostic v1.1 completed 312 model
 requests on A10G. Production/reference scores matched exactly on all 104 distinct
 prompts. Q00's JSON errors followed green across option labels and changed with
@@ -13,8 +19,8 @@ entity order. Both diagnostic Apps are verified stopped. See the
 
 **Earlier checkpoint:** the controlled memory harness and Modal transport are
 implemented. The first real run stopped at its frozen reader gate: 15/16 full
-history, 16/16 sufficient prose, and 13/16 sufficient JSON. No writer/budget pilot
-or task-specific fine-tuning has run. Read the
+history, 16/16 sufficient prose, and 13/16 sufficient JSON. That attempt reached
+neither writer calibration nor task-specific fine-tuning. Read the
 [implementation and verification handoff](docs/implementation-status-handoff-2026-11-17.md)
 and the new [pretrained-versus-fine-tuned reader proposal](docs/pretrained-vs-finetuned-memory-proposal.md).
 The proposal counts ordinary model errors in accuracy and compares memory schemes
