@@ -5,6 +5,15 @@ project. Proceed with bounded, versioned experiments without requesting GPU
 permission again. This supersedes older per-run authorization wording; preserve
 each run's settings, resource ceilings, evidence, exit status, and shutdown.
 
+**Paired base-rate study implemented and submitted:**
+[the frozen specification](docs/reader-base-rate-v1.md) compares current names
+against fixed-width numbered IDs on 160 fresh development families, with complete
+notes in both formats. The run requires an actual NVIDIA A10, preserves family
+checkpoints, and caps scoring at 2,608 forwards including integrity checks. The
+2-percentage-point decision margin and uncertainty rules were frozen before
+inference. Offline checks: 599 passed, 26 skipped; transport: 10 passed. Final
+collection and analysis are pending. The old generator and test splits remain unchanged.
+
 **Name/distractor ablation completed, November 17:** 280 forwards show that specific
 identifiers materially affect Q00 errors. Renaming the queried entity fixes all
 four JSON cases with either prespecified alias; renaming a matched control does
