@@ -5,8 +5,20 @@ project. Proceed with bounded, versioned experiments without requesting GPU
 permission again. This supersedes older per-run authorization wording; preserve
 each run's settings, resource ceilings, evidence, exit status, and shutdown.
 
-**Continuing on another machine:** read the [short handoff and copyable agent
-prompt](docs/reader-study-handoff.md).
+**Current iteration: paper reading.** On `codex/long-context-paper-memory`, the
+stock Qwen 4B reads real papers in chunks and maintains a prose or JSON notebook,
+then answers factual questions. Both notebooks have a 2,048-token allowance;
+full-paper, evidence-only and no-context conditions provide references. Read the
+[pilot protocol](docs/paper-memory-v1.md) and [short handoff with a continuation
+prompt](docs/paper-memory-handoff.md).
+
+**Paper pilot completed, November 18:** on three papers and nine factual questions,
+strict accuracy was **9/9 full paper, 5/9 prose, 6/9 JSON**. One JSON miss is
+citation-only. The main observed problem is fact loss during notebook updates;
+one task-label/reader ambiguity remains. Format outcomes reverse across papers.
+See the [results and saved evidence](docs/paper-memory-results-2026-11-18.md).
+All 94 generations are accounted for and all eight Apps are stopped. Offline:
+641 passed, 26 skipped. No fine-tuning has run.
 
 **Stock reader on actual writer notes completed, November 18:** plain text scored
 **14/16 (87.5%)** and JSON **15/16 (93.75%)**, at both P0 and P12. All six wrong
@@ -17,9 +29,9 @@ The versioned [A10G protocol](docs/stock-memory-eval-v1.1.md) keeps the original
 64 notes/labels. All 192 forwards completed; independent scores/repeats matched
 exactly. Three earlier setup attempts made zero model calls. All four Apps are
 stopped. Offline: 620 passed, 26 skipped; successful transport: 10 passed.
-Next: R/V writer collection and evidence labels for the planned reader LoRA study,
-with stock validation performance recorded first. Four calibration families
-support an exploratory result, not a general format ranking.
+The current branch continues with the paper-reading study above. Four calibration
+families support an exploratory result, not a general format ranking. The earlier
+[reader-training handoff](docs/reader-study-handoff.md) remains available.
 
 **Paired base-rate study completed, November 17:** on 160 fresh development
 families with complete correct notes, stock 4B scored **97.97% prose / 98.28% JSON**
