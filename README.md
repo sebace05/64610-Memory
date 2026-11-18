@@ -5,6 +5,15 @@ project. Proceed with bounded, versioned experiments without requesting GPU
 permission again. This supersedes older per-run authorization wording; preserve
 each run's settings, resource ceilings, evidence, exit status, and shutdown.
 
+**Name/distractor ablation completed, November 17:** 280 forwards show that specific
+identifiers materially affect Q00 errors. Renaming the queried entity fixes all
+four JSON cases with either prespecified alias; renaming a matched control does
+not. `tevug` and `tuven` already have different first tokens, so that proposed
+filter would miss this pair. See the [results and evidence](docs/name-ablation-results-2026-11-17.md)
+and [fixed diagnostic](docs/name-ablation-v1.md). The generator and writer remain
+unchanged; validate clearer identifiers on fresh development families before
+committing to training. The App is verified stopped.
+
 **Writer calibration completed, November 17: B=256.** All 64 C00–C03 P0/P12
 snapshots passed raw-trace audit and independent tokenizer recount; the largest
 is 183 tokens. The selected corpus contains 448 primary writes and two repairs,
@@ -12,7 +21,7 @@ with no fallbacks or empty snapshots. Recovery preserved completed units after
 two Modal preemptions; all Apps are verified stopped. Read the
 [results and evidence](docs/writer-collection-results-2026-11-17.md) and
 [collector guide](docs/writer-collection-v1.md). Offline validation: 559 tests
-passed, 26 skipped, plus transport checks. Training remains the next stage.
+passed, 26 skipped, plus transport checks. Reader training has not run.
 
 **Earlier GPU result, November 17:** reader diagnostic v1.1 completed 312 model
 requests on A10G. Production/reference scores matched exactly on all 104 distinct

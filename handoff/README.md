@@ -1,5 +1,16 @@
 # Evidence for the Modal handoff
 
+**November 17 name/distractor ablation:**
+[`name-ablation-20261117-evidence.zip`](name-ablation-20261117-evidence.zip)
+contains the fixed 280-forward diagnostic, actual name tokenization, raw scores,
+independent baseline checks/repeats, reports, usage and shutdown evidence. Read
+[the results](../docs/name-ablation-results-2026-11-17.md) first. Validate the
+adjacent SHA-256, ZIP CRCs and every entry against
+`handoff/name-ablation-transfer-manifest.json` inside the ZIP. Restore only
+`artifacts/` entries after path/hash checks; skip identical files and stop on
+conflicts. Never overlay source or overwrite evidence. No weights/environments
+are included. The App is verified stopped with zero tasks.
+
 **November 17 writer calibration:**
 [`writer-collection-20261117-evidence.zip`](writer-collection-20261117-evidence.zip)
 contains the two interrupted writer attempts, successful C02/C03 family jobs,
