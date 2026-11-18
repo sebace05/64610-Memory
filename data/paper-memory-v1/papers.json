@@ -1,0 +1,621 @@
+{
+ "attribution": "Dasigi et al. (2021), A Dataset of Information-Seeking Questions and Answers Anchored in Research Papers, NAACL. https://aclanthology.org/2021.naacl-main.365/",
+ "curated_utc": "2026-11-18T17:32:32.830869+00:00",
+ "curator": "Codex agent; source-quote checks and agent review, not independent human validation.",
+ "is_fake": false,
+ "license": "CC BY 4.0",
+ "papers": [
+  {
+   "abstract": "Acoustic word embeddings --- fixed-dimensional vector representations of variable-length spoken word segments --- have begun to be considered for tasks such as speech recognition and query-by-example search. Such embeddings can be learned discriminatively so that they are similar for speech segments corresponding to the same word, while being dissimilar for segments corresponding to different words. Recent work has found that acoustic word embeddings can outperform dynamic time warping on query-by-example search and related word discrimination tasks. However, the space of embedding models and training approaches is still relatively unexplored. In this paper we present new discriminative embedding models based on recurrent neural networks (RNNs). We consider training losses that have been successful in prior work, in particular a cross entropy loss for word classification and a contrastive loss that explicitly aims to separate same-word and different-word pairs in a\"Siamese network\"training setting. We find that both classifier-based and Siamese RNN embeddings improve over previously reported results on a word discrimination task, with Siamese RNNs outperforming classification models. In addition, we present analyses of the learned embeddings and the effects of variables such as dimensionality and network structure.",
+   "paper_id": "P00",
+   "paragraphs": [
+    {
+     "section": "Introduction",
+     "text": "Many speech processing tasks – such as automatic speech recognition or spoken term detection – hinge on associating segments of speech signals with word labels. In most systems developed for such tasks, words are broken down into sub-word units such as phones, and models are built for the individual units. An alternative, which has been considered by some researchers, is to consider each entire word segment as a single unit, without assigning parts of it to sub-word units. One motivation for the use of whole-word approaches is that they avoid the need for sub-word models. This is helpful since, despite decades of work on sub-word modeling BIBREF0 , BIBREF1 , it still poses significant challenges. For example, speech processing systems are still hampered by differences in conversational pronunciations BIBREF2 . A second motivation is that considering whole words at once allows us to consider a more flexible set of features and reason over longer time spans."
+    },
+    {
+     "section": "Introduction",
+     "text": "Whole-word approaches typically involve, at some level, template matching. For example, in template-based speech recognition BIBREF3 , BIBREF4 , word scores are computed from dynamic time warping (DTW) distances between an observed segment and training segments of the hypothesized word. In query-by-example search, putative matches are typically found by measuring the DTW distance between the query and segments of the search database BIBREF5 , BIBREF6 , BIBREF7 , BIBREF8 . In other words, whole-word approaches often boil down to making decisions about whether two segments are examples of the same word or not."
+    },
+    {
+     "section": "Introduction",
+     "text": "An alternative to DTW that has begun to be explored is the use of acoustic word embeddings (AWEs), or vector representations of spoken word segments. AWEs are representations that can be learned from data, ideally such that the embeddings of two segments corresponding to the same word are close, while embeddings of segments corresponding to different words are far apart. Once word segments are represented via fixed-dimensional embeddings, computing distances is as simple as measuring a cosine or Euclidean distance between two vectors."
+    },
+    {
+     "section": "Introduction",
+     "text": "There has been some, thus far limited, work on acoustic word embeddings, focused on a number of embedding models, training approaches, and tasks BIBREF9 , BIBREF10 , BIBREF11 , BIBREF12 , BIBREF13 , BIBREF14 , BIBREF15 , BIBREF16 . In this paper we explore new embedding models based on recurrent neural networks (RNNs), applied to a word discrimination task related to query-by-example search. RNNs are a natural model class for acoustic word embeddings, since they can handle arbitrary-length sequences. We compare several types of RNN-based embeddings and analyze their properties. Compared to prior embeddings tested on the same task, our best models achieve sizable improvements in average precision."
+    },
+    {
+     "section": "Related work",
+     "text": "We next briefly describe the most closely related prior work."
+    },
+    {
+     "section": "Related work",
+     "text": "Maas et al. BIBREF9 and Bengio and Heigold BIBREF10 used acoustic word embeddings, based on convolutional neural networks (CNNs), to generate scores for word segments in automatic speech recognition. Maas et al. trained CNNs to predict (continuous-valued) embeddings of the word labels, and used the resulting embeddings to define feature functions in a segmental conditional random field BIBREF17 rescoring system. Bengio and Heigold also developed CNN-based embeddings for lattice rescoring, but with a contrastive loss to separate embeddings of a given word from embeddings of other words."
+    },
+    {
+     "section": "Related work",
+     "text": "Levin et al. BIBREF11 developed unsupervised embeddings based on representing each word as a vector of DTW distances to a collection of reference word segments. This representation was subsequently used in several applications: a segmental approach for query-by-example search BIBREF12 , lexical clustering BIBREF18 , and unsupervised speech recognition BIBREF19 . Voinea et al. BIBREF15 developed a representation also based on templates, in their case phone templates, designed to be invariant to specific transformations, and showed their robustness on digit classification."
+    },
+    {
+     "section": "Related work",
+     "text": "Kamper et al. BIBREF13 compared several types of acoustic word embeddings for a word discrimination task related to query-by-example search, finding that embeddings based on convolutional neural networks (CNNs) trained with a contrastive loss outperformed the reference vector approach of Levin et al. BIBREF11 as well as several other CNN and DNN embeddings and DTW using several feature types. There have now been a number of approaches compared on this same task and data BIBREF11 , BIBREF20 , BIBREF21 , BIBREF22 . For a direct comparison with this prior work, in this paper we use the same task and some of the same training losses as Kamper et al., but develop new embedding models based on RNNs."
+    },
+    {
+     "section": "Related work",
+     "text": "The only prior work of which we are aware using RNNs for acoustic word embeddings is that of Chen et al. BIBREF16 and Chung et al. BIBREF14 . Chen et al. learned a long short-term memory (LSTM) RNN for word classification and used the resulting hidden state vectors as a word embedding in a query-by-example task. The setting was quite specific, however, with a small number of queries and speaker-dependent training. Chung et al. BIBREF14 worked in an unsupervised setting and trained single-layer RNN autoencoders to produce embeddings for a word discrimination task. In this paper we focus on the supervised setting, and compare a variety of RNN-based structures trained with different losses."
+    },
+    {
+     "section": "Related work",
+     "text": ""
+    },
+    {
+     "section": "Approach",
+     "text": ""
+    },
+    {
+     "section": "Approach",
+     "text": "An acoustic word embedding is a function that takes as input a speech segment corresponding to a word, INLINEFORM0 , where each INLINEFORM1 is a vector of frame-level acoustic features, and outputs a fixed-dimensional vector representing the segment, INLINEFORM2 . The basic embedding model structure we use is shown in Fig. FIGREF1 . The model consists of a deep RNN with some number INLINEFORM3 of stacked layers, whose final hidden state vector is passed as input to a set of INLINEFORM4 of fully connected layers; the output of the final fully connected layer is the embedding INLINEFORM5 ."
+    },
+    {
+     "section": "Approach",
+     "text": "The RNN hidden state at each time frame can be viewed as a representation of the input seen thus far, and its value in the last time frame INLINEFORM0 could itself serve as the final word embedding. The fully connected layers are added to account for the fact that some additional transformation may improve the representation. For example, the hidden state may need to be larger than the desired word embedding dimension, in order to be able to \"remember\" all of the needed intermediate information. Some of that information may not be needed in the final embedding. In addition, the information maintained in the hidden state may not necessarily be discriminative; some additional linear or non-linear transformation may help to learn a discriminative embedding."
+    },
+    {
+     "section": "Approach",
+     "text": "Within this class of embedding models, we focus on Long Short-Term Memory (LSTM) networks BIBREF23 and Gated Recurrent Unit (GRU) networks BIBREF24 . These are both types of RNNs that include a mechanism for selectively retaining or discarding information at each time frame when updating the hidden state, in order to better utilize long-term context. Both of these RNN variants have been used successfully in speech recognition BIBREF25 , BIBREF26 , BIBREF27 , BIBREF28 ."
+    },
+    {
+     "section": "Approach",
+     "text": "In an LSTM RNN, at each time frame both the hidden state INLINEFORM0 and an associated “cell memory\" vector INLINEFORM1 , are updated and passed on to the next time frame. In other words, each forward edge in Figure FIGREF1 can be viewed as carrying both the cell memory and hidden state vectors. The updates are modulated by the values of several gating vectors, which control the degree to which the cell memory and hidden state are updated in light of new information in the current frame. For a single-layer LSTM network, the updates are as follows:"
+    },
+    {
+     "section": "Approach",
+     "text": " INLINEFORM0 "
+    },
+    {
+     "section": "Approach",
+     "text": "where INLINEFORM0 , and INLINEFORM1 are all vectors of the same dimensionality, INLINEFORM2 , and INLINEFORM3 are learned weight matrices of the appropriate sizes, INLINEFORM4 and INLINEFORM5 are learned bias vectors, INLINEFORM6 is a componentwise logistic activation, and INLINEFORM7 refers to the Hadamard (componentwise) product."
+    },
+    {
+     "section": "Approach",
+     "text": "Similarly, in a GRU network, at each time step a GRU cell determines what components of old information are retained, overwritten, or modified in light of the next step in the input sequence. The output from a GRU cell is only the hidden state vector. A GRU cell uses a reset gate INLINEFORM0 and an update gate INLINEFORM1 as described below for a single-layer network: INLINEFORM2 "
+    },
+    {
+     "section": "Approach",
+     "text": "where INLINEFORM0 , and INLINEFORM1 are all the same dimensionality, INLINEFORM2 , and INLINEFORM3 are learned weight matrices of the appropriate size, and INLINEFORM4 , INLINEFORM5 and INLINEFORM6 are learned bias vectors."
+    },
+    {
+     "section": "Approach",
+     "text": "All of the above equations refer to single-layer networks. In a deep network, with multiple stacked layers, the same update equations are used in each layer, with the state, cell, and gate vectors replaced by layer-specific vectors INLINEFORM0 and so on for layer INLINEFORM1 . For all but the first layer, the input INLINEFORM2 is replaced by the hidden state vector from the previous layer INLINEFORM3 ."
+    },
+    {
+     "section": "Approach",
+     "text": "For the fully connected layers, we use rectified linear unit (ReLU) BIBREF29 activation, except for the final layer which depends on the form of supervision and loss used in training."
+    },
+    {
+     "section": "Approach",
+     "text": ""
+    },
+    {
+     "section": "Training",
+     "text": "We train the RNN-based embedding models using a set of pre-segmented spoken words. We use two main training approaches, inspired by prior work but with some differences in the details. As in BIBREF13 , BIBREF10 , our first approach is to use the word labels of the training segments and train the networks to classify the word. In this case, the final layer of INLINEFORM0 is a log-softmax layer. Here we are limited to the subset of the training set that has a sufficient number of segments per word to train a good classifier, and the output dimensionality is equal to the number of words (but see BIBREF13 for a study of varying the dimensionality in such a classifier-based embedding model by introducing a bottleneck layer). This model is trained end-to-end and is optimized with a cross entropy loss. Although labeled data is necessarily limited, the hope is that the learned models will be useful even when applied to spoken examples of words not previously seen in the training data. For words not seen in training, the embeddings should correspond to some measure of similarity of the word to the training words, measured via the posterior probabilities of the previously seen words. In the experiments below, we examine this assumption by analyzing performance on words that appear in the training data compared to those that do not."
+    },
+    {
+     "section": "Training",
+     "text": "The second training approach, based on earlier work of Kamper et al. BIBREF13 , is to train \"Siamese\" networks BIBREF30 . In this approach, full supervision is not needed; rather, we use weak supervision in the form of pairs of segments labeled as same or different. The base model remains the same as before—an RNN followed by a set of fully connected layers—but the final layer is no longer a softmax but rather a linear activation layer of arbitrary size. In order to learn the parameters, we simultaneously feed three word segments through three copies of our model (i.e. three networks with shared weights). One input segment is an “anchor\", INLINEFORM0 , the second is another segment with the same word label, INLINEFORM1 , and the third is a segment corresponding to a different word label, INLINEFORM2 . Then, the network is trained using a “cos-hinge\" loss:"
+    },
+    {
+     "section": "Training",
+     "text": " DISPLAYFORM0 "
+    },
+    {
+     "section": "Training",
+     "text": "where INLINEFORM0 is the cosine distance between INLINEFORM1 . Unlike cross entropy training, here we directly aim to optimize relative (cosine) distance between same and different word pairs. For tasks such as query-by-example search, this training loss better respects our end objective, and can use more data since neither fully labeled data nor any minimum number of examples of each word should be needed."
+    },
+    {
+     "section": "Training",
+     "text": ""
+    },
+    {
+     "section": "EXPERIMENTS",
+     "text": ""
+    },
+    {
+     "section": "EXPERIMENTS",
+     "text": "Our end goal is to improve performance on downstream tasks requiring accurate word discrimination. In this paper we use an intermediate task that more directly tests whether same- and different-word pairs have the expected relationship. and that allows us to compare to a variety of prior work. Specifically, we use the word discrimination task of Carlin et al. BIBREF20 , which is similar to a query-by-example task where the word segmentations are known. The evaluation consists of determining, for each pair of evaluation segments, whether they are examples of the same or different words, and measuring performance via the average precision (AP). We do this by measuring the cosine similarity between their acoustic word embeddings and declaring them to be the same if the distance is below a threshold. By sweeping the threshold, we obtain a precision-recall curve from which we compute the AP."
+    },
+    {
+     "section": "EXPERIMENTS",
+     "text": "The data used for this task is drawn from the Switchboard conversational English corpus BIBREF31 . The word segments range from 50 to 200 frames in length. The acoustic features in each frame (the input to the word embedding models INLINEFORM0 ) are 39-dimensional MFCCs+ INLINEFORM1 + INLINEFORM2 . We use the same train, development, and test partitions as in prior work BIBREF13 , BIBREF11 , and the same acoustic features as in BIBREF13 , for as direct a comparison as possible. The train set contains approximately 10k example segments, while dev and test each contain approximately 11k segments (corresponding to about 60M pairs for computing the dev/test AP). As in BIBREF13 , when training the classification-based embeddings, we use a subset of the training set containing all word types with a minimum of 3 occurrences, reducing the training set size to approximately 9k segments."
+    },
+    {
+     "section": "EXPERIMENTS",
+     "text": "When training the Siamese networks, the training data consists of all of the same-word pairs in the full training set (approximately 100k pairs). For each such training pair, we randomly sample a third example belonging to a different word type, as required for the INLINEFORM0 loss."
+    },
+    {
+     "section": "EXPERIMENTS",
+     "text": ""
+    },
+    {
+     "section": "Classification network details",
+     "text": "Our classifier-based embeddings use LSTM or GRU networks with 2–4 stacked layers and 1–3 fully connected layers. The final embedding dimensionality is equal to the number of unique word labels in the training set, which is 1061. The recurrent hidden state dimensionality is fixed at 512 and dropout BIBREF32 between stacked recurrent layers is used with probability INLINEFORM0 . The fully connected hidden layer dimensionality is fixed at 1024. Rectified linear unit (ReLU) non-linearities and dropout with INLINEFORM1 are used between fully-connected layers. However, between the final recurrent hidden state output and the first fully-connected layer no non-linearity or dropout is applied. These settings were determined through experiments on the development set."
+    },
+    {
+     "section": "Classification network details",
+     "text": "The classifier network is trained with a cross entropy loss and optimized using stochastic gradient descent (SGD) with Nesterov momentum BIBREF33 . The learning rate is initialized at 0.1 and is reduced by a factor of 10 according to the following heuristic: If 99% of the current epoch's average batch loss is greater than the running average of batch losses over the last 3 epochs, this is considered a plateau; if there are 3 consecutive plateau epochs, then the learning rate is reduced. Training stops when reducing the learning rate no longer improves dev set AP. Then, the model from the epoch corresponding to the the best dev set AP is chosen. Several other optimizers—Adagrad BIBREF34 , Adadelta BIBREF35 , and Adam BIBREF36 —were explored in initial experiments on the dev set, but all reported results were obtained using SGD with Nesterov momentum."
+    },
+    {
+     "section": "Classification network details",
+     "text": ""
+    },
+    {
+     "section": "Siamese network details",
+     "text": "For experiments with Siamese networks, we initialize (warm-start) the networks with the tuned classification network, removing the final log-softmax layer and replacing it with a linear layer of size equal to the desired embedding dimensionality. We explored embeddings with dimensionalities between 8 and 2048. We use a margin of 0.4 in the cos-hinge loss."
+    },
+    {
+     "section": "Siamese network details",
+     "text": "In training the Siamese networks, each training mini-batch consists of INLINEFORM0 triplets. INLINEFORM1 triplets are of the form INLINEFORM2 where INLINEFORM3 and INLINEFORM4 are examples of the same class (a pair from the 100k same-word pair set) and INLINEFORM5 is a randomly sampled example from a different class. Then, for each of these INLINEFORM6 triplets INLINEFORM7 , an additional triplet INLINEFORM8 is added to the mini-batch to allow all segments to serve as anchors. This is a slight departure from earlier work BIBREF13 , which we found to improve stability in training and performance on the development set."
+    },
+    {
+     "section": "Siamese network details",
+     "text": "In preliminary experiments, we compared two methods for choosing the negative examples INLINEFORM0 during training, a uniform sampling approach and a non-uniform one. In the case of uniform sampling, we sample INLINEFORM1 uniformly at random from the full set of training examples with labels different from INLINEFORM2 . This sampling method requires only word-pair supervision. In the case of non-uniform sampling, INLINEFORM3 is sampled in two steps. First, we construct a distribution INLINEFORM4 over word labels INLINEFORM5 and sample a different label from it. Second, we sample an example uniformly from within the subset with the chosen label. The goal of this method is to speed up training by targeting pairs that violate the margin constraint. To construct the multinomial PMF INLINEFORM6 , we maintain an INLINEFORM7 matrix INLINEFORM8 , where INLINEFORM9 is the number of unique word labels in training. Each word label corresponds to an integer INLINEFORM10 INLINEFORM11 [1, INLINEFORM12 ] and therefore a row in INLINEFORM13 . The values in a row of INLINEFORM14 are considered similarity scores, and we can retrieve the desired PMF for each row by normalizing by its sum."
+    },
+    {
+     "section": "Siamese network details",
+     "text": "At the start of each epoch, we initialize INLINEFORM0 with 0's along the diagonal and 1's elsewhere (which reduces to uniform sampling). For each training pair INLINEFORM1 , we update INLINEFORM2 for both INLINEFORM3 and INLINEFORM4 :"
+    },
+    {
+     "section": "Siamese network details",
+     "text": " INLINEFORM0 "
+    },
+    {
+     "section": "Siamese network details",
+     "text": "The PMFs INLINEFORM0 are updated after the forward pass of an entire mini-batch. The constant INLINEFORM1 enforces a potentially stronger constraint than is used in the INLINEFORM2 loss, in order to promote diverse sampling. In all experiments, we set INLINEFORM3 . This is a heuristic approach, and it would be interesting to consider various alternatives. Preliminary experiments showed that the non-uniform sampling method outperformed uniform sampling, and in the following we report results with non-uniform sampling."
+    },
+    {
+     "section": "Siamese network details",
+     "text": "We optimize the Siamese network model using SGD with Nesterov momentum for 15 epochs. The learning rate is initialized to 0.001 and dropped every 3 epochs until no improvement is seen on the dev set. The final model is taken from the epoch with the highest dev set AP. All models were implemented in Torch BIBREF37 and used the rnn library of BIBREF38 ."
+    },
+    {
+     "section": "Siamese network details",
+     "text": ""
+    },
+    {
+     "section": "Results",
+     "text": " Based on development set results, our final embedding models are LSTM networks with 3 stacked layers and 3 fully connected layers, with output dimensionality of 1024 in the case of Siamese networks. Final test set results are given in Table TABREF7 . We include a comparison with the best prior results on this task from BIBREF13 , as well as the result of using standard DTW on the input MFCCs (reproduced from BIBREF13 ) and the best prior result using DTW, obtained with frame features learned with correlated autoencoders BIBREF21 . Both classifier and Siamese LSTM embedding models outperform all prior results on this task of which we are aware."
+    },
+    {
+     "section": "Results",
+     "text": "We next analyze the effects of model design choices, as well as the learned embeddings themselves."
+    },
+    {
+     "section": "Results",
+     "text": ""
+    },
+    {
+     "section": "Effect of model structure",
+     "text": "Table TABREF10 shows the effect on development set performance of the number of stacked layers INLINEFORM0 , the number of fully connected layers INLINEFORM1 , and LSTM vs. GRU cells, for classifier-based embeddings. The best performance in this experiment is achieved by the LSTM network with INLINEFORM2 . However, performance still seems to be improving with additional layers, suggesting that we may be able to further improve performance by adding even more layers of either type. However, we fixed the model to INLINEFORM3 in order to allow for more experimentation and analysis within a reasonable time."
+    },
+    {
+     "section": "Effect of model structure",
+     "text": "Table TABREF10 reveals an interesting trend. When only one fully connected layer is used, the GRU networks outperform the LSTMs given a sufficient number of stacked layers. On the other hand, once we add more fully connected layers, the LSTMs outperform the GRUs. In the first few lines of Table TABREF10 , we use 2, 3, and 4 layer stacks of LSTMs and GRUs while holding fixed the number of fully-connected layers at INLINEFORM0 . There is clear utility in stacking additional layers; however, even with 4 stacked layers the RNNs still underperform the CNN-based embeddings of BIBREF13 until we begin adding fully connected layers."
+    },
+    {
+     "section": "Effect of model structure",
+     "text": "After exploring a variety of stacked RNNs, we fixed the stack to 3 layers and varied the number of fully connected layers. The value of each additional fully connected layer is clearly greater than that of adding stacked layers. All networks trained with 2 or 3 fully connected layers obtain more than 0.4 AP on the development set, while stacked RNNs with 1 fully connected layer are at around 0.3 AP or less. This may raise the question of whether some simple fully connected model may be all that is needed; however, previous work has shown that this approach is not competitive BIBREF13 , and convolutional or recurrent layers are needed to summarize arbitrary-length segments into a fixed-dimensional representation."
+    },
+    {
+     "section": "Effect of model structure",
+     "text": ""
+    },
+    {
+     "section": "Effect of embedding dimensionality",
+     "text": "For the Siamese networks, we varied the output embedding dimensionality, as shown in Fig. FIGREF11 . This analysis shows that the embeddings learned by the Siamese RNN network are quite robust to reduced dimensionality, outperforming the classifier model for all dimensionalities 32 or higher and outperforming previously reported dev set performance with CNN-based embeddings BIBREF13 for all dimensionalities INLINEFORM0 ."
+    },
+    {
+     "section": "Effect of embedding dimensionality",
+     "text": ""
+    },
+    {
+     "section": "Effect of training vocabulary",
+     "text": "We might expect the learned embeddings to be more accurate for words that are seen in training than for ones that are not. Fig. FIGREF11 measures this effect by showing performance as a function of the number of occurrences of the dev words in the training set. Indeed, both model types are much more successful for in-vocabulary words, and their performance improves the higher the training frequency of the words. However, performance increases more quickly for the Siamese network than for the classifier as training frequency increases. This may be due to the fact that, if a word type occurs at least INLINEFORM0 times in the classifier training set, then it occurs at least INLINEFORM1 times in the Siamese paired training data."
+    },
+    {
+     "section": "Effect of training vocabulary",
+     "text": ""
+    },
+    {
+     "section": "Visualization of embeddings",
+     "text": "In order to gain a better qualitative understanding of the differences between clasiffier and Siamese-based embeddings, and of the learned embedding space more generally, we plot a two-dimensional visualization of some of our learned embeddings via t-SNE BIBREF40 in Fig. FIGREF12 . For both classifier and Siamese embeddings, there is a marked difference in the quality of clusters formed by embeddings of words that were previously seen vs. previously unseen in training. However, the Siamese network embeddings appear to have better relative distances between word clusters with similar and dissimilar pronunciations. For example, the word programs appears equidistant from problems and problem in the classifier-based embedding space, but in the Siamese embedding space problems falls between problem and programs. Similarly, the cluster for democracy shifts with respect to actually and especially to better respect differences in pronunciation. More study of learned embeddings, using more data and word types, is needed to confirm such patterns in general. Improvements in unseen word embeddings from the classifier embedding space to the Siamese embedding space (such as for democracy, morning, and basketball) are a likely result of optimizing the model for relative distances between words."
+    },
+    {
+     "section": "Visualization of embeddings",
+     "text": ""
+    },
+    {
+     "section": "Conclusion",
+     "text": ""
+    },
+    {
+     "section": "Conclusion",
+     "text": "Our main finding is that RNN-based acoustic word embeddings outperform prior approaches, as measured via a word discrimination task related to query-by-example search. Our best results are obtained with deep LSTM RNNs with a combination of several stacked layers and several fully connected layers, optimized with a contrastive Siamese loss. Siamese networks have the benefit that, for any given training data set, they are effectively trained on a much larger set, in the sense that they measure a loss and gradient for every possible pair of data points. Our experiments suggest that the models could still be improved with additional layers. In addition, we have found that, for the purposes of acoustic word embeddings, fully connected layers are very important and have a more significant effect per layer than stacked layers, particularly when trained with the cross entropy loss function."
+    },
+    {
+     "section": "Conclusion",
+     "text": "These experiments represent an initial exploration of sequential neural models for acoustic word embeddings. There are a number of directions for further work. For example, while our analyses suggest that Siamese networks are better than classifier-based models at embedding previously unseen words, our best embeddings are still much poorer for unseen words. Improvements in this direction may come from larger training sets, or may require new models that better model the shared structure between words. Other directions for future work include additional forms of supervision and training, as well as application to downstream tasks."
+    }
+   ],
+   "qasper_id": "1611.02550",
+   "questions": [
+    {
+     "aliases": [
+      "Switchboard conversational English corpus",
+      "Switchboard",
+      "Switchboard corpus",
+      "Switchboard conversational English"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 29,
+     "evidence_text": "The data used for this task is drawn from the Switchboard conversational English corpus BIBREF31 . The word segments range from 50 to 200 frames in length. The acoustic features in each frame (the input to the word embedding models INLINEFORM0 ) are 39-dimensional MFCCs+ INLINEFORM1 + INLINEFORM2 . We use the same train, development, and test partitions as in prior work BIBREF13 , BIBREF11 , and the same acoustic features as in BIBREF13 , for as direct a comparison as possible. The train set contains approximately 10k example segments, while dev and test each contain approximately 11k segments (corresponding to about 60M pairs for computing the dev/test AP). As in BIBREF13 , when training the classification-based embeddings, we use a subset of the training set containing all word types with a minimum of 3 occurrences, reducing the training set size to approximately 9k segments.",
+     "gold_anchor": "Switchboard conversational English corpus",
+     "question": "Which corpus supplied the speech segments used in the word-discrimination experiments?",
+     "question_id": "P00/Q0"
+    },
+    {
+     "aliases": [
+      "1061",
+      "1,061",
+      "1061 dimensions",
+      "1061-dimensional"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 32,
+     "evidence_text": "Our classifier-based embeddings use LSTM or GRU networks with 2–4 stacked layers and 1–3 fully connected layers. The final embedding dimensionality is equal to the number of unique word labels in the training set, which is 1061. The recurrent hidden state dimensionality is fixed at 512 and dropout BIBREF32 between stacked recurrent layers is used with probability INLINEFORM0 . The fully connected hidden layer dimensionality is fixed at 1024. Rectified linear unit (ReLU) non-linearities and dropout with INLINEFORM1 are used between fully-connected layers. However, between the final recurrent hidden state output and the first fully-connected layer no non-linearity or dropout is applied. These settings were determined through experiments on the development set.",
+     "gold_anchor": "1061",
+     "question": "What is the final embedding dimensionality of the classification-based networks?",
+     "question_id": "P00/Q1"
+    },
+    {
+     "aliases": [
+      "average precision",
+      "AP",
+      "average precision (AP)"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 28,
+     "evidence_text": "Our end goal is to improve performance on downstream tasks requiring accurate word discrimination. In this paper we use an intermediate task that more directly tests whether same- and different-word pairs have the expected relationship. and that allows us to compare to a variety of prior work. Specifically, we use the word discrimination task of Carlin et al. BIBREF20 , which is similar to a query-by-example task where the word segmentations are known. The evaluation consists of determining, for each pair of evaluation segments, whether they are examples of the same or different words, and measuring performance via the average precision (AP). We do this by measuring the cosine similarity between their acoustic word embeddings and declaring them to be the same if the distance is below a threshold. By sweeping the threshold, we obtain a precision-recall curve from which we compute the AP.",
+     "gold_anchor": "average precision",
+     "question": "Which metric measures performance on the same-word/different-word discrimination task?",
+     "question_id": "P00/Q2"
+    }
+   ],
+   "source_url": "https://arxiv.org/abs/1611.02550",
+   "title": "Discriminative Acoustic Word Embeddings: Recurrent Neural Network-Based Approaches"
+  },
+  {
+   "abstract": "Some users of social media are spreading racist, sexist, and otherwise hateful content. For the purpose of training a hate speech detection system, the reliability of the annotations is crucial, but there is no universally agreed-upon definition. We collected potentially hateful messages and asked two groups of internet users to determine whether they were hate speech or not, whether they should be banned or not and to rate their degree of offensiveness. One of the groups was shown a definition prior to completing the survey. We aimed to assess whether hate speech can be annotated reliably, and the extent to which existing definitions are in accordance with subjective ratings. Our results indicate that showing users a definition caused them to partially align their own opinion with the definition but did not improve reliability, which was very low overall. We conclude that the presence of hate speech should perhaps not be considered a binary yes-or-no decision, and raters need more detailed instructions for the annotation.",
+   "paper_id": "P01",
+   "paragraphs": [
+    {
+     "section": "Introduction",
+     "text": "Social media are sometimes used to disseminate hateful messages. In Europe, the current surge in hate speech has been linked to the ongoing refugee crisis. Lawmakers and social media sites are increasingly aware of the problem and are developing approaches to deal with it, for example promising to remove illegal messages within 24 hours after they are reported BIBREF0 ."
+    },
+    {
+     "section": "Introduction",
+     "text": "This raises the question of how hate speech can be detected automatically. Such an automatic detection method could be used to scan the large amount of text generated on the internet for hateful content and report it to the relevant authorities. It would also make it easier for researchers to examine the diffusion of hateful content through social media on a large scale."
+    },
+    {
+     "section": "Introduction",
+     "text": "From a natural language processing perspective, hate speech detection can be considered a classification task: given an utterance, determine whether or not it contains hate speech. Training a classifier requires a large amount of data that is unambiguously hate speech. This data is typically obtained by manually annotating a set of texts based on whether a certain element contains hate speech."
+    },
+    {
+     "section": "Introduction",
+     "text": "The reliability of the human annotations is essential, both to ensure that the algorithm can accurately learn the characteristics of hate speech, and as an upper bound on the expected performance BIBREF1 , BIBREF2 . As a preliminary step, six annotators rated 469 tweets. We found that agreement was very low (see Section 3). We then carried out group discussions to find possible reasons. They revealed that there is considerable ambiguity in existing definitions. A given statement may be considered hate speech or not depending on someone's cultural background and personal sensibilities. The wording of the question may also play a role."
+    },
+    {
+     "section": "Introduction",
+     "text": "We decided to investigate the issue of reliability further by conducting a more comprehensive study across a large number of annotators, which we present in this paper."
+    },
+    {
+     "section": "Introduction",
+     "text": "Our contribution in this paper is threefold:"
+    },
+    {
+     "section": "Hate Speech",
+     "text": "For the purpose of building a classifier, warner2012 define hate speech as “abusive speech targeting specific group characteristics, such as ethnic origin, religion, gender, or sexual orientation”. More recent approaches rely on lists of guidelines such as a tweet being hate speech if it “uses a sexist or racial slur” BIBREF2 . These approaches are similar in that they leave plenty of room for personal interpretation, since there may be differences in what is considered offensive. For instance, while the utterance “the refugees will live off our money” is clearly generalising and maybe unfair, it is unclear if this is already hate speech. More precise definitions from law are specific to certain jurisdictions and therefore do not capture all forms of offensive, hateful speech, see e.g. matsuda1993. In practice, social media services are using their own definitions which have been subject to adjustments over the years BIBREF3 . As of June 2016, Twitter bans hateful conduct."
+    },
+    {
+     "section": "Hate Speech",
+     "text": "With the rise in popularity of social media, the presence of hate speech has grown on the internet. Posting a tweet takes little more than a working internet connection but may be seen by users all over the world."
+    },
+    {
+     "section": "Hate Speech",
+     "text": "Along with the presence of hate speech, its real-life consequences are also growing. It can be a precursor and incentive for hate crimes, and it can be so severe that it can even be a health issue BIBREF4 . It is also known that hate speech does not only mirror existing opinions in the reader but can also induce new negative feelings towards its targets BIBREF5 . Hate speech has recently gained some interest as a research topic on the one hand – e.g. BIBREF6 , BIBREF4 , BIBREF7 – but also as a problem to deal with in politics such as the No Hate Speech Movement by the Council of Europe."
+    },
+    {
+     "section": "Hate Speech",
+     "text": "The current refugee crisis has made it evident that governments, organisations and the public share an interest in controlling hate speech in social media. However, there seems to be little consensus on what hate speech actually is."
+    },
+    {
+     "section": "Compiling A Hate Speech Corpus",
+     "text": "As previously mentioned, there is no German hate speech corpus available for our needs, especially not for the very recent topic of the refugee crisis in Europe. We therefore had to compile our own corpus. We used Twitter as a source as it offers recent comments on current events. In our study we only considered the textual content of tweets that contain certain keywords, ignoring those that contain pictures or links. This section provides a detailed description of the approach we used to select the tweets and subsequently annotate them."
+    },
+    {
+     "section": "Compiling A Hate Speech Corpus",
+     "text": "To find a large amount of hate speech on the refugee crisis, we used 10 hashtags that can be used in an insulting or offensive way. Using these hashtags we gathered 13 766 tweets in total, roughly dating from February to March 2016. However, these tweets contained a lot of non-textual content which we filtered out automatically by removing tweets consisting solely of links or images. We also only considered original tweets, as retweets or replies to other tweets might only be clearly understandable when reading both tweets together. In addition, we removed duplicates and near-duplicates by discarding tweets that had a normalised Levenshtein edit distance smaller than .85 to an aforementioned tweet. A first inspection of the remaining tweets indicated that not all search terms were equally suited for our needs. The search term #Pack (vermin or lowlife) found a potentially large amount of hate speech not directly linked to the refugee crisis. It was therefore discarded. As a last step, the remaining tweets were manually read to eliminate those which were difficult to understand or incomprehensible. After these filtering steps, our corpus consists of 541 tweets, none of which are duplicates, contain links or pictures, or are retweets or replies."
+    },
+    {
+     "section": "Compiling A Hate Speech Corpus",
+     "text": "As a first measurement of the frequency of hate speech in our corpus, we personally annotated them based on our previous expertise. The 541 tweets were split into six parts and each part was annotated by two out of six annotators in order to determine if hate speech was present or not. The annotators were rotated so that each pair of annotators only evaluated one part. Additionally the offensiveness of a tweet was rated on a 6-point Likert scale, the same scale used later in the study."
+    },
+    {
+     "section": "Compiling A Hate Speech Corpus",
+     "text": "Even among researchers familiar with the definitions outlined above, there was still a low level of agreement (Krippendorff's INLINEFORM0 ). This supports our claim that a clearer definition is necessary in order to be able to train a reliable classifier. The low reliability could of course be explained by varying personal attitudes or backgrounds, but clearly needs more consideration."
+    },
+    {
+     "section": "Methods",
+     "text": "In order to assess the reliability of the hate speech definitions on social media more comprehensively, we developed two online surveys in a between-subjects design. They were completed by 56 participants in total (see Table TABREF7 ). The main goal was to examine the extent to which non-experts agree upon their understanding of hate speech given a diversity of social media content. We used the Twitter definition of hateful conduct in the first survey. This definition was presented at the beginning, and again above every tweet. The second survey did not contain any definition. Participants were randomly assigned one of the two surveys."
+    },
+    {
+     "section": "Methods",
+     "text": "The surveys consisted of 20 tweets presented in a random order. For each tweet, each participant was asked three questions. Depending on the survey, participants were asked (1) to answer (yes/no) if they considered the tweet hate speech, either based on the definition or based on their personal opinion. Afterwards they were asked (2) to answer (yes/no) if the tweet should be banned from Twitter. Participants were finally asked (3) to answer how offensive they thought the tweet was on a 6-point Likert scale from 1 (Not offensive at all) to 6 (Very offensive). If they answered 4 or higher, the participants had the option to state which particular words they found offensive."
+    },
+    {
+     "section": "Methods",
+     "text": "After the annotation of the 20 tweets, participants were asked to voluntarily answer an open question regarding the definition of hate speech. In the survey with the definition, they were asked if the definition of Twitter was sufficient. In the survey without the definition, the participants were asked to suggest a definition themselves. Finally, sociodemographic data were collected, including age, gender and more specific information regarding the participant's political orientation, migration background, and personal position regarding the refugee situation in Europe."
+    },
+    {
+     "section": "Methods",
+     "text": "The surveys were approved by the ethical committee of the Department of Computer Science and Applied Cognitive Science of the Faculty of Engineering at the University of Duisburg-Essen."
+    },
+    {
+     "section": "Preliminary Results and Discussion",
+     "text": "Since the surveys were completed by 56 participants, they resulted in 1120 annotations. Table TABREF7 shows some summary statistics."
+    },
+    {
+     "section": "Preliminary Results and Discussion",
+     "text": "To assess whether the definition had any effect, we calculated, for each participant, the percentage of tweets they considered hate speech or suggested to ban and their mean offensiveness rating. This allowed us to compare the two samples for each of the three questions. Preliminary Shapiro-Wilk tests indicated that some of the data were not normally distributed. We therefore used the Wilcoxon-Mann-Whitney (WMW) test to compare the three pairs of series. The results are reported in Table TABREF7 ."
+    },
+    {
+     "section": "Preliminary Results and Discussion",
+     "text": "Participants who were shown the definition were more likely to suggest to ban the tweet. In fact, participants in group one very rarely gave different answers to questions one and two (18 of 500 instances or 3.6%). This suggests that participants in that group aligned their own opinion with the definition."
+    },
+    {
+     "section": "Preliminary Results and Discussion",
+     "text": "We chose Krippendorff's INLINEFORM0 to assess reliability, a measure from content analysis, where human coders are required to be interchangeable. Therefore, it measures agreement instead of association, which leaves no room for the individual predilections of coders. It can be applied to any number of coders and to interval as well as nominal data. BIBREF8 "
+    },
+    {
+     "section": "Preliminary Results and Discussion",
+     "text": "This allowed us to compare agreement between both groups for all three questions. Figure FIGREF8 visualises the results. Overall, agreement was very low, ranging from INLINEFORM0 to INLINEFORM1 . In contrast, for the purpose of content analysis, Krippendorff recommends a minimum of INLINEFORM2 , or a minimum of INLINEFORM3 for applications where some uncertainty is unproblematic BIBREF8 . Reliability did not consistently increase when participants were shown a definition."
+    },
+    {
+     "section": "Preliminary Results and Discussion",
+     "text": "To measure the extent to which the annotations using the Twitter definition (question one in group one) were in accordance with participants' opinions (question one in group two), we calculated, for each tweet, the percentage of participants in each group who considered it hate speech, and then calculated Pearson's correlation coefficient. The two series correlate strongly ( INLINEFORM0 ), indicating that they measure the same underlying construct."
+    },
+    {
+     "section": "Conclusion and Future Work",
+     "text": "This paper describes the creation of our hate speech corpus and offers first insights into the low agreement among users when it comes to identifying hateful messages. Our results imply that hate speech is a vague concept that requires significantly better definitions and guidelines in order to be annotated reliably. Based on the present findings, we are planning to develop a new coding scheme which includes clear-cut criteria that let people distinguish hate speech from other content."
+    },
+    {
+     "section": "Conclusion and Future Work",
+     "text": "Researchers who are building a hate speech detection system might want to collect multiple labels for each tweet and average the results. Of course this approach does not make the original data any more reliable BIBREF8 . Yet, collecting the opinions of more users gives a more detailed picture of objective (or intersubjective) hatefulness. For the same reason, researchers might want to consider hate speech detection a regression problem, predicting, for example, the degree of hatefulness of a message, instead of a binary yes-or-no classification task."
+    },
+    {
+     "section": "Conclusion and Future Work",
+     "text": "In the future, finding the characteristics that make users consider content hateful will be useful for building a model that automatically detects hate speech and users who spread hateful content, and for determining what makes users disseminate hateful content."
+    },
+    {
+     "section": "Acknowledgments",
+     "text": "This work was supported by the Deutsche Forschungsgemeinschaft (DFG) under grant No. GRK 2167, Research Training Group ”User-Centred Social Media”."
+    }
+   ],
+   "qasper_id": "1701.08118",
+   "questions": [
+    {
+     "aliases": [
+      "541",
+      "541 tweets"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 11,
+     "evidence_text": "To find a large amount of hate speech on the refugee crisis, we used 10 hashtags that can be used in an insulting or offensive way. Using these hashtags we gathered 13 766 tweets in total, roughly dating from February to March 2016. However, these tweets contained a lot of non-textual content which we filtered out automatically by removing tweets consisting solely of links or images. We also only considered original tweets, as retweets or replies to other tweets might only be clearly understandable when reading both tweets together. In addition, we removed duplicates and near-duplicates by discarding tweets that had a normalised Levenshtein edit distance smaller than .85 to an aforementioned tweet. A first inspection of the remaining tweets indicated that not all search terms were equally suited for our needs. The search term #Pack (vermin or lowlife) found a potentially large amount of hate speech not directly linked to the refugee crisis. It was therefore discarded. As a last step, the remaining tweets were manually read to eliminate those which were difficult to understand or incomprehensible. After these filtering steps, our corpus consists of 541 tweets, none of which are duplicates, contain links or pictures, or are retweets or replies.",
+     "gold_anchor": "541",
+     "question": "How many tweets remained in the corpus after all filtering steps?",
+     "question_id": "P01/Q0"
+    },
+    {
+     "aliases": [
+      "56",
+      "56 participants"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 14,
+     "evidence_text": "In order to assess the reliability of the hate speech definitions on social media more comprehensively, we developed two online surveys in a between-subjects design. They were completed by 56 participants in total (see Table TABREF7 ). The main goal was to examine the extent to which non-experts agree upon their understanding of hate speech given a diversity of social media content. We used the Twitter definition of hateful conduct in the first survey. This definition was presented at the beginning, and again above every tweet. The second survey did not contain any definition. Participants were randomly assigned one of the two surveys.",
+     "gold_anchor": "56",
+     "question": "How many participants completed the two online surveys in total?",
+     "question_id": "P01/Q1"
+    },
+    {
+     "aliases": [
+      "1120",
+      "1,120",
+      "1120 annotations",
+      "1,120 annotations"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 18,
+     "evidence_text": "Since the surveys were completed by 56 participants, they resulted in 1120 annotations. Table TABREF7 shows some summary statistics.",
+     "gold_anchor": "1120",
+     "question": "How many annotations resulted from the completed surveys?",
+     "question_id": "P01/Q2"
+    }
+   ],
+   "source_url": "https://arxiv.org/abs/1701.08118",
+   "title": "Measuring the Reliability of Hate Speech Annotations: The Case of the European Refugee Crisis"
+  },
+  {
+   "abstract": "Creative tasks such as ideation or question proposal are powerful applications of crowdsourcing, yet the quantity of workers available for addressing practical problems is often insufficient. To enable scalable crowdsourcing thus requires gaining all possible efficiency and information from available workers. One option for text-focused tasks is to allow assistive technology, such as an autocompletion user interface (AUI), to help workers input text responses. But support for the efficacy of AUIs is mixed. Here we designed and conducted a randomized experiment where workers were asked to provide short text responses to given questions. Our experimental goal was to determine if an AUI helps workers respond more quickly and with improved consistency by mitigating typos and misspellings. Surprisingly, we found that neither occurred: workers assigned to the AUI treatment were slower than those assigned to the non-AUI control and their responses were more diverse, not less, than those of the control. Both the lexical and semantic diversities of responses were higher, with the latter measured using word2vec. A crowdsourcer interested in worker speed may want to avoid using an AUI, but using an AUI to boost response diversity may be valuable to crowdsourcers interested in receiving as much novel information from workers as possible.",
+   "paper_id": "P02",
+   "paragraphs": [
+    {
+     "section": "Introduction",
+     "text": "Crowdsourcing applications vary from basic, self-contained tasks such as image recognition or labeling BIBREF0 all the way to open-ended and creative endeavors such as collaborative writing, creative question proposal, or more general ideation BIBREF1 . Yet scaling the crowd to very large sets of creative tasks may require prohibitive numbers of workers. Scalability is one of the key challenges in crowdsourcing: how to best apply the valuable but limited resources provided by crowd workers and how to help workers be as efficient as possible."
+    },
+    {
+     "section": "Introduction",
+     "text": "Efficiency gains can be achieved either collectively at the level of the entire crowd or by helping individual workers. At the crowd level, efficiency can be gained by assigning tasks to workers in the best order BIBREF2 , by filtering out poor tasks or workers, or by best incentivizing workers BIBREF3 . At the individual worker level, efficiency gains can come from helping workers craft more accurate responses and complete tasks in less time."
+    },
+    {
+     "section": "Introduction",
+     "text": "One way to make workers individually more efficient is to computationally augment their task interface with useful information. For example, an autocompletion user interface (AUI) BIBREF4 , such as used on Google's main search page, may speed up workers as they answer questions or propose ideas. However, support for the benefits of AUIs is mixed and existing research has not considered short, repetitive inputs such as those required by many large-scale crowdsourcing problems. More generally, it is not yet clear what are the best approaches or general strategies to achieve efficiency gains for creative crowdsourcing tasks."
+    },
+    {
+     "section": "Introduction",
+     "text": "In this work, we conducted a randomized trial of the benefits of allowing workers to answer a text-based question with the help of an autocompletion user interface. Workers interacted with a web form that recorded how quickly they entered text into the response field and how quickly they submitted their responses after typing is completed. After the experiment concluded, we measured response diversity using textual analyses and response quality using a followup crowdsourcing task with an independent population of workers. Our results indicate that the AUI treatment did not affect quality, and did not help workers perform more quickly or achieve greater response consensus. Instead, workers with the AUI were significantly slower and their responses were more diverse than workers in the non-AUI control group."
+    },
+    {
+     "section": "Related Work",
+     "text": "An important goal of crowdsourcing research is achieving efficient scalability of the crowd to very large sets of tasks. Efficiency in crowdsourcing manifests both in receiving more effective information per worker and in making individual workers faster and/or more accurate. The former problem is a significant area of interest BIBREF5 , BIBREF6 , BIBREF7 while less work has been put towards the latter."
+    },
+    {
+     "section": "Related Work",
+     "text": "One approach to helping workers be faster at individual tasks is the application of usability studies. BIBREF8 ( BIBREF8 ) famously showed how crowd workers can perform user studies, although this work was focused on using workers as usability testers for other platforms, not on studying crowdsourcing interfaces. More recent usability studies on the efficiency and accuracy of workers include: BIBREF9 ( BIBREF9 ), who consider the task completion times of macrotasks and microtasks and find workers given smaller microtasks were slower but achieve higher quality than those given larger macrotasks; BIBREF10 ( BIBREF10 ), who study how the sequence of tasks given to workers and interruptions between tasks may slow workers down; and BIBREF11 ( BIBREF11 ), who study completion times for relevance judgment tasks, and find that imposed time limits can improve relevance quality, but do not focus on ways to speed up workers. These studies do not test the effects of the task interface, however, as we do here."
+    },
+    {
+     "section": "Related Work",
+     "text": "The usability feature we study here is an autocompletion user interface (AUI). AUIs are broadly familiar to online workers at this point, thanks in particular to their prominence on Google's main search bar (evolving out of the original Google Instant implementation). However, literature on the benefits of AUIs (and related word prediction and completion interfaces) in terms of improving efficiency is decidedly mixed."
+    },
+    {
+     "section": "Related Work",
+     "text": "It is generally assumed that AUIs make users faster by saving keystrokes BIBREF12 . However, there is considerable debate about whether or not such gains are countered by increased cognitive load induced by processing the given autocompletions BIBREF13 . BIBREF14 ( BIBREF14 ) showed that typists can enter text more quickly with word completion and prediction interfaces than without. However, this study focused on a different input modality (an onscreen keyboard) and, more importantly, on a text transcription task: typists were asked to reproduce an existing text, not answer questions. BIBREF4 ( BIBREF4 ) showed that medical typists saved keystrokes when using an autocompletion interface to input standardized medical terms. However, they did not consider the elapsed times required by these users, instead focusing on response times of the AUI suggestions, and so it is unclear if the users were actually faster with the AUI. There is some evidence that long-term use of an AUI can lead to improved speed and not just keystroke savings BIBREF15 , but it is not clear how general such learning may be, and whether or not it is relevant to short-duration crowdsourcing tasks."
+    },
+    {
+     "section": "Experimental design",
+     "text": "Here we describe the task we studied and its input data, worker recruitment, the design of our experimental treatment and control, the “instrumentation” we used to measure the speeds of workers as they performed our task, and our procedures to post-process and rate the worker responses to our task prior to subsequent analysis."
+    },
+    {
+     "section": "Data collection",
+     "text": "We recruited 176 AMT workers to participate in our conceptualization task. Of these workers, 90 were randomly assigned to the Control group and 86 to the AUI group. These workers completed 1001 tasks: 496 tasks in the control and 505 in the AUI. All responses were gathered within a single 24-hour period during April, 2017."
+    },
+    {
+     "section": "Data collection",
+     "text": "After Control and AUI workers were finished responding, we initiated our non-experimental quality ratings task. Whenever multiple workers provided the same response to a given question, we only sought ratings for that single unique question and response. Each unique question-response pair ( INLINEFORM0 ) was rated at least 8–10 times (a few pairs were rated more often; we retained those extra ratings). We recruited 119 AMT workers (who were not members of the Control or AUI groups) who provided 4300 total ratings."
+    },
+    {
+     "section": "Differences in response time",
+     "text": "We found that workers were slower overall with the AUI than without the AUI. In Fig. FIGREF16 we show the distributions of typing duration and submission delay. There was a slight difference in typing duration between Control and AUI (median 1.97s for Control compared with median 2.69s for AUI). However, there was a strong difference in the distributions of submission delay, with AUI workers taking longer to submit than Control workers (median submission delay of 7.27s vs. 4.44s). This is likely due to the time required to mentally process and select from the AUI options. We anticipated that the submission delay may be counter-balanced by the time saved entering text, but the total typing duration plus submission delay was still significantly longer for AUI than control (median 7.64s for Control vs. 12.14s for AUI). We conclude that the AUI makes workers significantly slower."
+    },
+    {
+     "section": "Differences in response time",
+     "text": "We anticipated that workers may learn over the course of multiple tasks. For example, the first time a worker sees the AUI will present a very different cognitive load than the 10th time. This learning may eventually lead to improved response times and so an AUI that may not be useful the first time may lead to performance gains as workers become more experienced."
+    },
+    {
+     "section": "Differences in response time",
+     "text": "To investigate learning effects, we recorded for each worker's question-response pair how many questions that worker had already answered, and examined the distributions of typing duration and submission delay conditioned on the number of previously answered questions (Fig. FIGREF17 ). Indeed, learning did occur: the submission delay (but not typing duration) decreased as workers responded to more questions. However, this did not translate to gains in overall performance between Control and AUI workers as learning occurred for both groups: Among AUI workers who answered 10 questions, the median submission delay on the 10th question was 8.02s, whereas for Control workers who answered 10 questions, the median delay on the 10th question was only 4.178s. This difference between Control and AUI submission delays was significant (Mann-Whitney test: INLINEFORM0 , INLINEFORM1 , INLINEFORM2 , INLINEFORM3 ). In comparison, AUI (Control) workers answering their first question had a median submission delay of 10.97s (7.00s). This difference was also significant (Mann-Whitney test: INLINEFORM4 , INLINEFORM5 , INLINEFORM6 , INLINEFORM7 ). We conclude that experience with the AUI will not eventually lead to faster responses those of the control."
+    },
+    {
+     "section": "Differences in response diversity",
+     "text": "We were also interested in determining whether or not the worker responses were more consistent or more diverse due to the AUI. Response consistency for natural language data is important when a crowdsourcer wishes to pool or aggregate a set of worker responses. We anticipated that the AUI would lead to greater consistency by, among other effects, decreasing the rates of typos and misspellings. At the same time, however, the AUI could lead to more diversity due to cognitive priming: seeing suggested responses from the AUI may prompt the worker to revise their response. Increased diversity may be desirable when a crowdsourcer wants to receive as much information as possible from a given task."
+    },
+    {
+     "section": "Differences in response diversity",
+     "text": "To study the lexical and semantic diversities of responses, we performed three analyses. First, we aggregated all worker responses to a particular question into a single list corresponding to that question. Across all questions, we found that the number of unique responses was higher for the AUI than for the Control (Fig. FIGREF19 A), implying higher diversity for AUI than for Control."
+    },
+    {
+     "section": "Differences in response diversity",
+     "text": "Second, we compared the diversity of individual responses between Control and AUI for each question. To measure diversity for a question, we computed the number of responses divided by the number of unique responses to that question. We call this the response density. A set of responses has a response density of 1 when every response is unique but when every response is the same, the response density is equal to the number of responses. Across the ten questions, response density was significantly lower for AUI than for Control (Wilcoxon signed rank test paired on questions: INLINEFORM0 , INLINEFORM1 , INLINEFORM2 ) (Fig. FIGREF19 B)."
+    },
+    {
+     "section": "Differences in response diversity",
+     "text": "Third, we estimated the semantic diversity of responses using word vectors. Word vectors, or word embeddings, are a state-of-the-art computational linguistics tool that incorporate the semantic meanings of words and phrases by learning vector representations that are embedded into a high-dimensional vector space BIBREF18 , BIBREF19 . Vector operations within this space such as addition and subtraction are capable of representing meaning and interrelationships between words BIBREF19 . For example, the vector INLINEFORM0 is very close to the vector INLINEFORM1 , indicating that these vectors capture analogy relations. Here we used 300-dimension word vectors trained on a 100B-word corpus taken from Google News (word2vec). For each question we computed the average similarity between words in the responses to that question—a lower similarity implies more semantically diverse answers. Specifically, for a given question INLINEFORM2 , we concatenated all responses to that question into a single document INLINEFORM3 , and averaged the vector similarities INLINEFORM4 of all pairs of words INLINEFORM5 in INLINEFORM6 , where INLINEFORM7 is the word vector corresponding to word INLINEFORM8 : DISPLAYFORM0 "
+    },
+    {
+     "section": "Differences in response diversity",
+     "text": "where INLINEFORM0 if INLINEFORM1 and zero otherwise. We also excluded from EQREF21 any word pairs where one or both words were not present in the pre-trained word vectors (approximately 13% of word pairs). For similarity INLINEFORM2 we chose the standard cosine similarity between two vectors. As with response density, we found that most questions had lower word vector similarity INLINEFORM3 (and are thus collectively more semantically diverse) when considering AUI responses as the document INLINEFORM4 than when INLINEFORM5 came from the Control workers (Fig. FIGREF19 C). The difference was significant (Wilcoxon signed rank test paired on questions: INLINEFORM6 , INLINEFORM7 , INLINEFORM8 )."
+    },
+    {
+     "section": "Differences in response diversity",
+     "text": "Taken together, we conclude from these three analyses that the AUI increased the diversity of the responses workers gave."
+    },
+    {
+     "section": "No difference in response quality",
+     "text": "Following the collection of responses from the Control and AUI groups, separate AMT workers were asked to rate the quality of the original responses (see Experimental design). These ratings followed a 1–5 scale from lowest to highest. We present these ratings in Fig. FIGREF23 . While there was variation in overall quality across different questions (Fig. FIGREF23 A), we did not observe a consistent difference in perceived response quality between the two groups. There was also no statistical difference in the overall distributions of ratings per question (Fig. FIGREF23 B). We conclude that the AUI neither increased nor decreased response quality."
+    },
+    {
+     "section": "Discussion",
+     "text": "We have showed via a randomized control trial that an autocompletion user interface (AUI) is not helpful in making workers more efficient. Further, the AUI led to a more lexically and semantically diverse set of text responses to a given task than if the AUI was not present. The AUI also had no noticeable impact, positive or negative, on response quality, as independently measured by other workers."
+    },
+    {
+     "section": "Discussion",
+     "text": "A challenge with text-focused crowdsourcing is aggregation of natural language responses. Unlike binary labeling tasks, for example, normalizing text data can be challenging. Should casing be removed? Should words be stemmed? What to do with punctuation? Should typos be fixed? One of our goals when testing the effects of the AUI was to see if it helps with this normalization task, so that crowdsourcers can spend less time aggregating responses. We found that the AUI would likely not help with this in the sense that the sets of responses became more diverse, not less. Yet, this may in fact be desirable—if a crowdsourcer wants as much diverse information from workers as possible, then showing them dynamic AUI suggestions may provide a cognitive priming mechanism to inspire workers to consider responses which otherwise would not have occurred to them."
+    },
+    {
+     "section": "Discussion",
+     "text": "One potential explanation for the increased submission delay among AUI workers is an excessive number of options presented by the AUI. The goal of an AUI is to present the best options at the top of the drop down menu (Fig. FIGREF2 B). Then a worker can quickly start typing and choose the best option with a single keystroke or mouse click. However, if the best option appears farther down the menu, then the worker must commit more time to scan and process the AUI suggestions. Our AUI always presented six suggestions, with another six available by scrolling, and our experiment did not vary these numbers. Yet the size of the AUI and where options land may play significant roles in submission delay, especially if significant numbers of selections come from AUI positions far from the input area."
+    },
+    {
+     "section": "Discussion",
+     "text": "We aimed to explore position effects, but due to some technical issues we did not record the positions in the AUI that workers chose. However, our Javascript instrumentation logged worker keystrokes as they typed so we can approximately reconstruct the AUI position of the worker's ultimate response. To do this, we first identified the logged text inputed by the worker before it was replaced by the AUI selection, then used this text to replicate the database query underlying the AUI, and lastly determined where the worker's final response appeared in the query results. This procedure is only an approximation because our instrumentation would occasionally fail to log some keystrokes and because a worker could potentially type out the entire response even if it also appeared in the AUI (which the worker may not have even noticed). Nevertheless, most AUI workers submitted responses that appeared in the AUI (Fig. FIGREF24 A) and, of those responses, most owere found in the first few (reconstructed) positions near the top of the AUI (Fig. FIGREF24 B). Specifically, we found that 59.3% of responses were found in the first two reconstructed positions, and 91.2% were in the first six. With the caveats of this analysis in mind, which we hope to address in future experiments, these results provide some evidence that the AUI responses were meaningful and that the AUI workers were delayed by the AUI even though most chosen responses came from the top area of the AUI which is most quickly accessible to the worker."
+    },
+    {
+     "section": "Discussion",
+     "text": "Beyond AUI position effects and the number of options shown in the AUI, there are many aspects of the interplay between workers and the AUI to be further explored. We limited workers to performing no more than ten tasks, but will an AUI eventually lead to efficiency gains beyond that level of experience? It is also an open question if an AUI will lead to efficiency gains when applying more advanced autocompletion and ranking algorithms than the one we used. Given that workers were slower with the AUI primarily due to a delay after they finished typing which far exceeded the delays of non-AUI workers, better algorithms may play a significant role in speeding up or, in this case, slowing down workers. Either way, our results here indicate that crowdsourcers must be very judicious if they wish to augment workers with autocompletion user interfaces."
+    },
+    {
+     "section": "Acknowledgments",
+     "text": "We thank S. Lehman and J. Bongard for useful comments and gratefully acknowledge the resources provided by the Vermont Advanced Computing Core. This material is based upon work supported by the National Science Foundation under Grant No. IIS-1447634."
+    }
+   ],
+   "qasper_id": "1707.06939",
+   "questions": [
+    {
+     "aliases": [
+      "176",
+      "176 workers",
+      "176 AMT workers"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 9,
+     "evidence_text": "We recruited 176 AMT workers to participate in our conceptualization task. Of these workers, 90 were randomly assigned to the Control group and 86 to the AUI group. These workers completed 1001 tasks: 496 tasks in the control and 505 in the AUI. All responses were gathered within a single 24-hour period during April, 2017.",
+     "gold_anchor": "176",
+     "question": "How many AMT workers were recruited for the conceptualization experiment?",
+     "question_id": "P02/Q0"
+    },
+    {
+     "aliases": [
+      "119",
+      "119 workers",
+      "119 AMT workers"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 10,
+     "evidence_text": "After Control and AUI workers were finished responding, we initiated our non-experimental quality ratings task. Whenever multiple workers provided the same response to a given question, we only sought ratings for that single unique question and response. Each unique question-response pair ( INLINEFORM0 ) was rated at least 8–10 times (a few pairs were rated more often; we retained those extra ratings). We recruited 119 AMT workers (who were not members of the Control or AUI groups) who provided 4300 total ratings.",
+     "gold_anchor": "119",
+     "question": "How many separate AMT workers were recruited for the non-experimental quality-ratings task?",
+     "question_id": "P02/Q1"
+    },
+    {
+     "aliases": [
+      "300",
+      "300 dimensions",
+      "300-dimensional",
+      "300-dimension"
+     ],
+     "curation": "Agent-reviewed literal-fact question; wording/aliases fixed before Qwen predictions.",
+     "evidence_index": 17,
+     "evidence_text": "Third, we estimated the semantic diversity of responses using word vectors. Word vectors, or word embeddings, are a state-of-the-art computational linguistics tool that incorporate the semantic meanings of words and phrases by learning vector representations that are embedded into a high-dimensional vector space BIBREF18 , BIBREF19 . Vector operations within this space such as addition and subtraction are capable of representing meaning and interrelationships between words BIBREF19 . For example, the vector INLINEFORM0 is very close to the vector INLINEFORM1 , indicating that these vectors capture analogy relations. Here we used 300-dimension word vectors trained on a 100B-word corpus taken from Google News (word2vec). For each question we computed the average similarity between words in the responses to that question—a lower similarity implies more semantically diverse answers. Specifically, for a given question INLINEFORM2 , we concatenated all responses to that question into a single document INLINEFORM3 , and averaged the vector similarities INLINEFORM4 of all pairs of words INLINEFORM5 in INLINEFORM6 , where INLINEFORM7 is the word vector corresponding to word INLINEFORM8 : DISPLAYFORM0 ",
+     "gold_anchor": "300",
+     "question": "How many dimensions did the Google News word2vec vectors used in the response-diversity analysis have?",
+     "question_id": "P02/Q2"
+    }
+   ],
+   "source_url": "https://arxiv.org/abs/1707.06939",
+   "title": "Autocompletion interfaces make crowd workers slower, but their use promotes response diversity"
+  }
+ ],
+ "selection": "First three papers by sorted ID with 12000–36000 source characters and at least three structurally eligible single-span QASPER answers. Pilot questions curated/clarified to require a literal fact, not original QASPER benchmark scoring.",
+ "source": "QASPER v0.3 training split",
+ "source_train_sha256": "9458bfe76074a8fa8d1685af02bcc73537aa6d338ad20591dfaff1946bc88bf4",
+ "version": "paper-memory-v1"
+}
