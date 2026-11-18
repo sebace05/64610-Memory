@@ -31,7 +31,7 @@ def corpus(tmp_path_factory):
             annotations.append(dict(snapshot_id=s["snapshot_id"],notebook_sha256=s["rendered_sha256"],query=query,
                 supported_destination=note_state(s["rendered"])[query],evidence_quotes=[s["rendered"]],
                 rationale="Synthetic fixture evidence, not a Qwen annotation."))
-    data = dict(version=sm.VERSION,predictions_seen=False,method="synthetic pre-prediction labels",annotations=annotations)
+    data = dict(version=sm.ANNOTATION_VERSION,predictions_seen=False,method="synthetic pre-prediction labels",annotations=annotations)
     labels = root/"annotations.json"
     labels.write_text(json.dumps(data))
     return path,labels,data
@@ -160,7 +160,7 @@ def test_repeat_differences_are_reported_without_changing_primary_results(packag
 
 def test_wrong_device_refused_before_tokenizer_and_weights(tmp_path,monkeypatch):
     from game_memory import transformers_model as tm
-    monkeypatch.setattr(sm.rd.transport,"runtime_and_cache",lambda *_:({"runtime":{"gpu":"NVIDIA A10G"}},{}))
+    monkeypatch.setattr(sm.rd.transport,"runtime_and_cache",lambda *_:({"runtime":{"gpu":"NVIDIA A10"}},{}))
     monkeypatch.setattr(sm.rd.transport,"cached_tokenizer",lambda *_:pytest.fail("reached tokenizer"))
     monkeypatch.setattr(tm,"TransformersModel",lambda *_:pytest.fail("loaded weights"))
     with pytest.raises(ValueError,match="before tokenizer/weights"):
@@ -175,7 +175,7 @@ def test_real_loader_rejects_fixture_corpus_before_runtime_or_weights(tmp_path,m
 
 def test_real_reader_cannot_score_a_fixture_corpus(package,tmp_path):
     class ClaimedReal(Reader):
-        metadata = {"is_fake":False,"gpu":"NVIDIA A10"}
+        metadata = {"is_fake":False,"gpu":sm.GPU}
     reader,reference = ClaimedReal(),ClaimedReal()
     with pytest.raises(ValueError,match="fixture writer corpus"):
         sm.run(package,tmp_path/"run",loader=lambda *_:(reader,reference))

@@ -16,20 +16,23 @@ from . import reader_diagnostic as rd
 from . import writer_collection as wc
 from .runner import _LoggedModel
 
-VERSION = "stock-memory-eval-v1"
+VERSION = "stock-memory-eval-v1.1"
+ANNOTATION_VERSION = "stock-memory-eval-v1"
+GPU = "NVIDIA A10G"
 FAMILIES = ("C00", "C01", "C02", "C03")
 REQUEST_CEILING = 192  # 64 primary + 64 independent reference + 64 repeats
 SOFT_SECONDS = 600
 WRITER_MANIFEST = "7eb254a9de27d8176c3d208c59c691e0b1b8e27b9a804e6ec79cb60660455a2d"
 WRITER_COMPLETION = "54757eb5509fd97b7c39f6c6178ff8d9c27ab3162a04f750625e5265107d6376"
 SOURCE_FILES = (*br.SOURCE_FILES, "game_memory/stock_memory_eval.py",
-                "tests/test_stock_memory_eval.py", "docs/stock-memory-eval-v1.md")
+                "tests/test_stock_memory_eval.py", "docs/stock-memory-eval-v1.md",
+                "docs/stock-memory-eval-v1.1.md")
 
 
 def settings():
     return dict(version=VERSION, families=list(FAMILIES), allowance=256,
         primary_assessments=64, request_ceiling=REQUEST_CEILING,
-        soft_seconds=SOFT_SECONDS, execution_seconds=900, gpu=br.GPU,
+        soft_seconds=SOFT_SECONDS, execution_seconds=900, gpu=GPU,
         model=dict(id=mp.MODEL_ID, revision=mp.MODEL_REVISION, dtype="float16",
                    context_limit=8192, generation_seed=0))
 
@@ -50,7 +53,7 @@ def inputs(corpus, annotations):
     fs = rd._read(corpus/"calibration-families.json")
     if fs != wc.generate_splits()["calibration"] or tuple(f["family_id"] for f in fs) != FAMILIES:
         raise ValueError("calibration families differ")
-    if (annotations.get("version") != VERSION or annotations.get("predictions_seen") is not False
+    if (annotations.get("version") != ANNOTATION_VERSION or annotations.get("predictions_seen") is not False
             or not annotations.get("method")):
         raise ValueError("pre-prediction annotation provenance missing")
     labels = annotations["annotations"]
@@ -147,8 +150,8 @@ def load_models(manifest,entries,output):
     cache = Path("/cache/huggingface/hub/models--Qwen--Qwen3-4B-Instruct-2507/snapshots")/mp.MODEL_REVISION
     runtime,cfg = rd.transport.runtime_and_cache(tm,config,cache)
     rd.transport.save(output/"runtime-cache.json",runtime)
-    if runtime["runtime"]["gpu"]!=br.GPU:
-        raise ValueError("pinned NVIDIA A10 required; refused before tokenizer/weights")
+    if runtime["runtime"]["gpu"]!=GPU:
+        raise ValueError(f"pinned {GPU} required; refused before tokenizer/weights")
     tokenizer = rd.transport.cached_tokenizer(cache)
     checked = rd.preflight(entries,tokenizer,cfg["vocab_size"],evidence="actual_cached_tokenizer")
     if (len(checked["prompts"])!=manifest["unique_prompts"]
@@ -177,7 +180,7 @@ def run(package,output,*,loader=load_models,commit=lambda:None,clock=time.monoto
                       reference_is_fake=reference.metadata.get("is_fake") is not False)
         if status["model_is_fake"]!=status["reference_is_fake"]:
             raise ValueError("mixed real/fixture readers")
-        if not status["model_is_fake"] and (model.metadata.get("gpu")!=br.GPU or manifest["writer_is_fake"]):
+        if not status["model_is_fake"] and (model.metadata.get("gpu")!=GPU or manifest["writer_is_fake"]):
             raise ValueError("unpinned GPU or fixture writer corpus with real reader")
         if not (output/"model.json").exists():
             rd.transport.save(output/"model.json",model.metadata)
@@ -273,7 +276,7 @@ def report(output):
     real = model.get("is_fake") is False
     preflight = rd._read(output/"tokenizer-preflight.json") if real else None
     expected_model = dict(model_id=mp.MODEL_ID,revision=mp.MODEL_REVISION,dtype="float16",
-                          context_limit=8192,generation_seed=0,gpu=br.GPU)
+                          context_limit=8192,generation_seed=0,gpu=GPU)
     if real and (any(model.get(k)!=v for k,v in expected_model.items()) or manifest["writer_is_fake"]
                  or preflight["evidence"]!="actual_cached_tokenizer"
                  or set(preflight["prompts"])!={c["prompt_sha256"] for c in entries}):
