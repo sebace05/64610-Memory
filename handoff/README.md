@@ -1,5 +1,20 @@
 # Evidence for the Modal handoff
 
+**November 17 writer calibration:**
+[`writer-collection-20261117-evidence.zip`](writer-collection-20261117-evidence.zip)
+contains the two interrupted writer attempts, successful C02/C03 family jobs,
+CPU-only consolidation, frozen source/splits, raw writes/calls, exact notebook
+exports, tokenizer recounts, audits, accounting and shutdown evidence. The
+[results report](../docs/writer-collection-results-2026-11-17.md) records B=256.
+The archive contains no model weights, environments or credentials.
+
+Before restoration, verify the adjacent SHA-256, ZIP CRCs and every entry against
+`handoff/writer-collection-transfer-manifest.json` inside the ZIP. Restore only
+`artifacts/` entries after validating all paths and bytes; skip identical files
+and stop on conflicts. Never overwrite evidence or overlay archived source onto
+the live repository. New test-family facts remain sealed for held-out evaluation.
+All five writer/consolidation Apps are verified stopped.
+
 **November 17 reader diagnostic:**
 [`reader-diagnostic-20261117-evidence.zip`](reader-diagnostic-20261117-evidence.zip)
 contains the failed and corrected diagnostic attempts plus the prior

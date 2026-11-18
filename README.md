@@ -5,15 +5,16 @@ project. Proceed with bounded, versioned experiments without requesting GPU
 permission again. This supersedes older per-run authorization wording; preserve
 each run's settings, resource ceilings, evidence, exit status, and shutdown.
 
-**Writer collection is implemented:** the [collection guide](docs/writer-collection-v1.md)
-describes fresh disjoint splits, writer-only chains, literal P0/P12 snapshot
-exports, and the fixed 128/256 budget rule. Modal preempted the first pilot after
-C00/C01 completed. Version 1.1 verifies and copies those completed units into a
-fresh attempt; C02/C03 recovery is in progress. Reader training remains a later
-stage. Offline validation: 559 tests passed, 26 skipped, with one upstream
-TextWorldExpress cleanup warning; the frozen recovery transport passed 10 more tests.
+**Writer calibration completed, November 17: B=256.** All 64 C00–C03 P0/P12
+snapshots passed raw-trace audit and independent tokenizer recount; the largest
+is 183 tokens. The selected corpus contains 448 primary writes and two repairs,
+with no fallbacks or empty snapshots. Recovery preserved completed units after
+two Modal preemptions; all Apps are verified stopped. Read the
+[results and evidence](docs/writer-collection-results-2026-11-17.md) and
+[collector guide](docs/writer-collection-v1.md). Offline validation: 559 tests
+passed, 26 skipped, plus transport checks. Training remains the next stage.
 
-**Latest GPU result, November 17:** reader diagnostic v1.1 completed 312 model
+**Earlier GPU result, November 17:** reader diagnostic v1.1 completed 312 model
 requests on A10G. Production/reference scores matched exactly on all 104 distinct
 prompts. Q00's JSON errors followed green across option labels and changed with
 entity order. Both diagnostic Apps are verified stopped. See the
