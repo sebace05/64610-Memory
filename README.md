@@ -5,14 +5,16 @@ project. Proceed with bounded, versioned experiments without requesting GPU
 permission again. This supersedes older per-run authorization wording; preserve
 each run's settings, resource ceilings, evidence, exit status, and shutdown.
 
-**Paired base-rate study implemented and submitted:**
-[the frozen specification](docs/reader-base-rate-v1.md) compares current names
-against fixed-width numbered IDs on 160 fresh development families, with complete
-notes in both formats. The run requires an actual NVIDIA A10, preserves family
-checkpoints, and caps scoring at 2,608 forwards including integrity checks. The
-2-percentage-point decision margin and uncertainty rules were frozen before
-inference. Offline checks: 599 passed, 26 skipped; transport: 10 passed. Final
-collection and analysis are pending. The old generator and test splits remain unchanged.
+**Paired base-rate study completed, November 17:** on 160 fresh development
+families with complete correct notes, stock 4B scored **97.97% prose / 98.28% JSON**
+with current names, versus **99.53% / 98.28%** with fixed numbered IDs. The naming
+comparison is **inconclusive** under the frozen 2-percentage-point margin; keep
+the generator. IDs fixed 11 JSON errors and introduced 11 others. See the
+[results and evidence](docs/reader-base-rate-results-2026-11-17.md) and
+[frozen specification](docs/reader-base-rate-v1.md). All 2,608 forwards completed
+on verified NVIDIA A10; independent scores and repeats matched exactly. Offline
+checks: 599 passed, 26 skipped; transport: 10 passed. The App is verified stopped.
+Next: evaluate the stock reader on the saved writer notes before deciding on LoRA.
 
 **Name/distractor ablation completed, November 17:** 280 forwards show that specific
 identifiers materially affect Q00 errors. Renaming the queried entity fixes all
@@ -20,8 +22,8 @@ four JSON cases with either prespecified alias; renaming a matched control does
 not. `tevug` and `tuven` already have different first tokens, so that proposed
 filter would miss this pair. See the [results and evidence](docs/name-ablation-results-2026-11-17.md)
 and [fixed diagnostic](docs/name-ablation-v1.md). The generator and writer remain
-unchanged; validate clearer identifiers on fresh development families before
-committing to training. The App is verified stopped.
+unchanged; the fresh-family follow-up above is now complete. The App is verified
+stopped.
 
 **Writer calibration completed, November 17: B=256.** All 64 C00–C03 P0/P12
 snapshots passed raw-trace audit and independent tokenizer recount; the largest

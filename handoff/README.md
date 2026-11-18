@@ -1,5 +1,18 @@
 # Evidence for the Modal handoff
 
+**November 17 paired reader base-rate study:**
+[`reader-base-rate-20261117-evidence.zip`](reader-base-rate-20261117-evidence.zip)
+contains the frozen 160-family naming comparison, all 2,608 raw scoring forwards,
+actual prompt/name tokenization, family checkpoints, audited reports, paired
+uncertainty, error-note inspection, usage and shutdown proof. Read
+[the results](../docs/reader-base-rate-results-2026-11-17.md) first. Validate the
+adjacent SHA-256, ZIP CRCs and every entry against
+`handoff/reader-base-rate-transfer-manifest.json` inside the ZIP. Restore only
+`artifacts/` entries after full path/hash validation, skipping identical files
+and stopping on conflicts. Never overwrite evidence or overlay archived source.
+No weights, environments or credentials are included. The App is verified stopped
+with zero tasks. The naming comparison is inconclusive; the generator is unchanged.
+
 **November 17 name/distractor ablation:**
 [`name-ablation-20261117-evidence.zip`](name-ablation-20261117-evidence.zip)
 contains the fixed 280-forward diagnostic, actual name tokenization, raw scores,
