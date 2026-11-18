@@ -5,6 +5,9 @@ project. Proceed with bounded, versioned experiments without requesting GPU
 permission again. This supersedes older per-run authorization wording; preserve
 each run's settings, resource ceilings, evidence, exit status, and shutdown.
 
+**Continuing on another machine:** read the [short handoff and copyable agent
+prompt](docs/reader-study-handoff.md).
+
 **Paired base-rate study completed, November 17:** on 160 fresh development
 families with complete correct notes, stock 4B scored **97.97% prose / 98.28% JSON**
 with current names, versus **99.53% / 98.28%** with fixed numbered IDs. The naming
