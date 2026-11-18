@@ -263,3 +263,48 @@ writer_collection.main()
 """
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, timeout=15)
     assert result.returncode == 0 and "calibrate" in result.stdout
+
+
+def test_explicit_recovery_copies_complete_units_and_generates_only_missing_families(package, tmp_path):
+    first = FixtureModel()
+    original = tmp_path / "original"
+    wc.calibrate(package, original, loader=lambda *_: (first, first.count_tokens), commit=lambda: None)
+    manifest = wc._read(original / "entry.json")["manifest"]
+    reuse = [{"family_id": fid, "directory": str(original / fid),
+              "source_manifest_sha256": manifest["manifest_sha256"],
+              "completion_sha256": mp.file_sha256(original / fid / "completion.json")}
+             for fid in ("C00", "C01")]
+    second = FixtureModel()
+    recovered = tmp_path / "recovered"
+    result = wc.calibrate(package, recovered, loader=lambda *_: (second, second.count_tokens),
+                          commit=lambda: None, reuse=reuse)
+    assert result["complete"] and second.calls == 224
+    assert result["status"]["new_attempted_requests"] == 224
+    assert result["status"]["reused_requests"] == 224
+    assert result["status"]["attempted_requests"] == result["known_usage"]["responses"] == 448
+    assert result["selected_allowance"] == 128
+    for item in reuse:
+        for path in (original / item["family_id"]).iterdir():
+            assert (recovered / item["family_id"] / path.name).read_bytes() == path.read_bytes()
+
+
+@pytest.mark.parametrize("fault", ["hash", "source", "incomplete", "duplicate"])
+def test_recovery_refuses_bad_or_incomplete_sources_before_model_load(package, tmp_path, fault):
+    model = FixtureModel()
+    original = tmp_path / "original"
+    wc.calibrate(package, original, loader=lambda *_: (model, model.count_tokens), commit=lambda: None)
+    item = {"family_id": "C00", "directory": str(original / "C00"),
+            "source_manifest_sha256": wc._read(original / "entry.json")["manifest"]["manifest_sha256"],
+            "completion_sha256": mp.file_sha256(original / "C00/completion.json")}
+    reuse = [item]
+    if fault == "hash":
+        item["completion_sha256"] = "0" * 64
+    elif fault == "source":
+        item["source_manifest_sha256"] = "0" * 64
+    elif fault == "incomplete":
+        (original / "C00/completion.json").unlink()
+    else:
+        reuse.append(item)
+    with pytest.raises((mp.AuditError, FileNotFoundError)):
+        wc.calibrate(package, tmp_path / "recovery", loader=lambda *_: pytest.fail("bad recovery reached model load"),
+                     commit=lambda: None, reuse=reuse)

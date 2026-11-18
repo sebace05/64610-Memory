@@ -7,9 +7,11 @@ each run's settings, resource ceilings, evidence, exit status, and shutdown.
 
 **Writer collection is implemented:** the [collection guide](docs/writer-collection-v1.md)
 describes fresh disjoint splits, writer-only chains, literal P0/P12 snapshot
-exports, and the fixed 128/256 budget rule. The four-family C00–C03 GPU calibration
-is in progress. Reader training remains a later stage. Offline validation:
-554 tests passed, 26 skipped; the frozen Modal transport passed 10 additional tests.
+exports, and the fixed 128/256 budget rule. Modal preempted the first pilot after
+C00/C01 completed. Version 1.1 verifies and copies those completed units into a
+fresh attempt; C02/C03 recovery is in progress. Reader training remains a later
+stage. Offline validation: 559 tests passed, 26 skipped, with one upstream
+TextWorldExpress cleanup warning; the frozen recovery transport passed 10 more tests.
 
 **Latest GPU result, November 17:** reader diagnostic v1.1 completed 312 model
 requests on A10G. Production/reference scores matched exactly on all 104 distinct

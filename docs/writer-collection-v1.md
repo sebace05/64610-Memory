@@ -1,4 +1,4 @@
-# Writer collection v1
+# Writer collection v1.1
 
 This implements the first data-collection stage of the
 [matched reader-training protocol](matched-reader-training-v1.md). Standing GPU
@@ -85,3 +85,27 @@ It establishes neither reader accuracy nor factual retention. The next stages
 are R/V notebook collection at the selected B, evidence-based labeling, and a
 separate reader-only LoRA implementation. E data remain sealed until the
 development and training decisions are frozen.
+
+## Recovery after the observed Modal preemption
+
+The first writer pilot was preempted during C02 after completing C00 and C01.
+Modal replayed the input despite `retries=0`; the exclusive output guard refused
+that replay before source/model work. Both the interruption and replay error are
+preserved. [Modal documents this platform behavior](https://modal.com/docs/guide/preemption).
+The original attempt and its settings remain immutable.
+
+Version 1.1 adds only explicit recovery of **completed** family units into a new
+attempt. A frozen transport plan lists each source directory, original scientific
+manifest digest and completion-file hash. Before weights, re-audit each source and
+require the identical calibration split, model/writer settings, and unchanged
+writer/auditor dependencies. Copy the entire unit byte-for-byte; never read from
+or append to an incomplete chain. Save lineage, then generate only missing whole
+families, with a reduced request ceiling of 224 per missing family. Recount all
+64 final snapshots using the actual pinned tokenizer before applying the same rule.
+
+The recovered corpus contains 448 primary writer requests across its source
+attempts; copied calls are not new inference. Status/reporting distinguish reused
+requests from newly attempted GPU calls. Account for the interrupted source's
+unused partial C02 calls separately in the execution report. Recovery neither
+chooses notes by quality nor reruns a completed family. No automatic scientific
+retry or resubmission of an existing attempt is enabled.

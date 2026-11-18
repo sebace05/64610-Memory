@@ -19,7 +19,7 @@ from . import memory_probe as mp
 from . import memory_probe_modal as transport
 
 PROTOCOL = "matched-reader-training-v1"
-VERSION = "writer-collection-v1"
+VERSION = "writer-collection-v1.1"
 SPLITS = {"calibration": ("C", 4), "training": ("R", 32),
           "validation": ("V", 8), "test": ("E", 16)}
 ALLOWANCE = 256
@@ -296,8 +296,9 @@ def select_allowance(counts):
 
 
 class _WriterOnly:
-    def __init__(self, model, deadline, clock):
+    def __init__(self, model, deadline, clock, limit=REQUEST_CEILING):
         self.model, self.deadline, self.clock, self.calls = model, deadline, clock, 0
+        self.limit = limit
 
     @property
     def metadata(self):
@@ -311,7 +312,7 @@ class _WriterOnly:
             raise ValueError("writer collection forbids reader/generic action calls")
         if self.clock() >= self.deadline:
             raise mp.StageTimeout("writer collection deadline before inference")
-        if self.calls >= REQUEST_CEILING:
+        if self.calls >= self.limit:
             raise RuntimeError("writer collection request ceiling")
         self.calls += 1
         return self.model.generate(messages, purpose=purpose)
@@ -351,7 +352,41 @@ def load_models(manifest, families, output):
     return model, lambda text: len(tokenizer.encode(text, add_special_tokens=False))
 
 
-def calibrate(package, output, *, loader, commit, clock=time.monotonic):
+def _verified_reuse(reuse, manifest, families):
+    """Completed units only; explicit hashes pin the interrupted source attempt."""
+    known = {f["family_id"]: f for f in families}
+    verified = {}
+    for item in reuse:
+        fid, directory = item["family_id"], Path(item["directory"])
+        if fid not in known or fid in verified:
+            raise mp.AuditError("unknown/duplicate reused calibration family")
+        origin = _read(directory.parent / "entry.json")["manifest"]
+        if (origin["manifest_sha256"] != item["source_manifest_sha256"]
+                or mp.digest({k: v for k, v in origin.items() if k != "manifest_sha256"})
+                   != item["source_manifest_sha256"]
+                or mp.file_sha256(directory / "completion.json") != item["completion_sha256"]):
+            raise mp.AuditError("reused source identity/completion differs")
+        for key in ("protocol", "model", "writer_version", "reader_version", "calibration_allowance"):
+            if origin[key] != manifest[key]:
+                raise mp.AuditError("reused writer/split settings differ")
+        if (origin["splits"]["calibration"] != manifest["splits"]["calibration"]
+                or mp.file_sha256(directory.parent / "calibration-families.json")
+                   != manifest["splits"]["calibration"]["sha256"]):
+            raise mp.AuditError("reused calibration split differs")
+        for name in (*mp.SOURCE_FILES, "game_memory/memory_probe_modal.py"):
+            if origin["source_files"][name] != manifest["source_files"][name]:
+                raise mp.AuditError("reused writer/auditor dependency differs: " + name)
+        source_status = _read(directory.parent / "status.json")
+        model = _read(directory.parent / "model.json")
+        if (model.get("is_fake") is not False) != source_status["model_is_fake"]:
+            raise mp.AuditError("reused model identity differs")
+        audit = audit_family(directory, known[fid], ALLOWANCE, real=not source_status["model_is_fake"])
+        verified[fid] = {**item, "directory": str(directory), "audit": audit, "source_model": model,
+            "source_status_sha256": mp.file_sha256(directory.parent / "status.json")}
+    return verified
+
+
+def calibrate(package, output, *, loader, commit, clock=time.monotonic, reuse=()):
     manifest = verify_package(package, source=Path(__file__).resolve().parents[1])
     package, output = Path(package), Path(output)
     families = _read(package / manifest["splits"]["calibration"]["path"])
@@ -361,15 +396,32 @@ def calibrate(package, output, *, loader, commit, clock=time.monotonic):
     shutil.copyfile(package / manifest["splits"]["calibration"]["path"], output / "calibration-families.json")
     transport.save(output / "entry.json", {"manifest": manifest, "started_monotonic": started})
     commit()
-    status = {"complete": False, "completed_families": [], "manifest_sha256": manifest["manifest_sha256"]}
+    status = {"complete": False, "completed_families": [], "manifest_sha256": manifest["manifest_sha256"],
+              "reused_requests": 0}
     guarded, original = None, None
     try:
+        verified = _verified_reuse(reuse, manifest, families)
+        transport.save(output / "reuse.json", list(verified.values()))
         model, recount = loader(manifest, families, output)
+        if not (output / "model.json").exists():
+            transport.save(output / "model.json", model.metadata)
         status["model_is_fake"] = model.metadata.get("is_fake") is not False
-        guarded = _WriterOnly(model, deadline, clock)
+        guarded = _WriterOnly(model, deadline, clock, (4 - len(verified)) * 224)
         for family in families:
-            write_family(family, ALLOWANCE, output / family["family_id"], guarded,
-                         commit=commit, deadline=deadline, clock=clock)
+            fid = family["family_id"]
+            if fid in verified:
+                source = verified[fid]
+                keys = ("is_fake", "model_id", "revision", "dtype", "device", "context_limit",
+                        "generation_seed", "memory_max_new_tokens", "do_sample", "use_model_defaults")
+                if any(source["source_model"].get(k) != model.metadata.get(k) for k in keys):
+                    raise mp.AuditError("reused/new model configuration differs")
+                shutil.copytree(source["directory"], output / fid)
+                audit = audit_family(output / fid, family, ALLOWANCE, real=not status["model_is_fake"])
+                status["reused_requests"] += audit["requests"]
+                commit()
+            else:
+                write_family(family, ALLOWANCE, output / fid, guarded,
+                             commit=commit, deadline=deadline, clock=clock)
             status["completed_families"].append(family["family_id"])
         measurements = []
         for family in families:
@@ -394,7 +446,9 @@ def calibrate(package, output, *, loader, commit, clock=time.monotonic):
                       traceback=traceback.format_exc())
         raise
     finally:
-        status.update(attempted_requests=guarded.calls if guarded else 0,
+        new_requests = guarded.calls if guarded else 0
+        status.update(new_attempted_requests=new_requests,
+                      attempted_requests=new_requests + status["reused_requests"],
                       wall_seconds=clock() - started)
         try:
             transport.save(output / "status.json", status)
@@ -470,7 +524,19 @@ def report(output):
             "repairs": sum(len(w["request_ids"]) == 2 for w in writes if w["format"] == fmt),
             "fallbacks": sum("memory_fallback:previous_valid_memory" in w["update_events"]
                              for w in writes if w["format"] == fmt)}
+    reuse = _read(output / "reuse.json") if (output / "reuse.json").exists() else []
+    if status["complete"] and status.get("reused_requests", 0) != sum(r["audit"]["requests"] for r in reuse):
+        raise mp.AuditError("reused request accounting differs")
+    if status["complete"]:
+        for item in reuse:
+            if mp.file_sha256(output / item["family_id"] / "completion.json") != item["completion_sha256"]:
+                raise mp.AuditError("reused unit bytes differ from pinned source")
+        if (status.get("new_attempted_requests", status["attempted_requests"])
+                + status.get("reused_requests", 0) != status["attempted_requests"]):
+            raise mp.AuditError("new/reused request accounting differs")
     return {"status": status, "complete": status["complete"], "selected_allowance": selected,
+        "reused_units": reuse,
+        "usage_scope": "Distinct physical requests represented in this corpus, including explicitly reused units; new GPU attempts are recorded separately.",
         "audits": audits, "cells": cells, "snapshots": snapshots,
         "known_usage": {"request_records": len(requests), "responses": len(responses),
             "unknown_usage_requests": len(requests) - len(responses),
